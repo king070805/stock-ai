@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>个股智投 - AI驱动的股票分析</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <header class="topbar">
+            <div class="brand">
+                <span class="logo">📈</span>
+                <span class="brand-name">个股智投</span>
+                <span class="brand-tag">AI 分析</span>
+            </div>
+            <div class="top-actions">
+                <button class="btn-watchlist" onclick="toggleWatchlist()" title="自选股">⭐<span class="watchlist-count" id="watchlistCount">0</span></button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="输入股票代码或名称...">
+                <div class="search-results" id="searchResults"></div>
+            </div>
+        </header>
+
+        <div class="watchlist-bar" id="watchlistBar" style="display:none">
+            <div class="watchlist-bar-header">
+                <span>⭐ 我的自选</span>
+                <button class="btn-close-sm" onclick="toggleWatchlist()">✕</button>
+            </div>
+            <div class="watchlist-items" id="watchlistItems">
+                <span class="empty-hint">点击股票行的 ⭐ 添加自选</span>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <main class="content">
+                <div class="tabs">
+                    <a href="#" class="tab" data-market="a" data-sort="change">涨跌幅</a>
+                    <a href="#" class="tab active" data-market="a" data-sort="amount">成交额</a>
+                    <a href="#" class="tab" data-market="a" data-sort="volume">成交量</a>
+                    <a href="#" class="tab" data-market="us" data-sort="change">美股</a>
+                    <a href="#" class="tab" data-market="hk" data-sort="change">港股</a>
+                </div>
+
+                <div class="market-status" id="marketStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">加载中...</span>
+                </div>
+
+                <div class="table-wrap">
+                <table class="stock-table">
+                    <thead>
+                        <tr>
+                            <th class="col-wl"></th>
+                            <th class="col-rank">#</th>
+                            <th class="col-name">股票名称</th>
+                            <th class="col-price">最新价</th>
+                            <th class="col-change">涨跌幅</th>
+                            <th class="col-change hide-mobile">成交额</th>
+                            <th class="col-change hide-mobile">换手率</th>
+                            <th class="col-change hide-mobile">市盈率</th>
+                            <th class="col-action"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody">
+                        <tr><td colspan="9" class="loading-row">加载中...</td></tr>
+                    </tbody>
+                </table>
+                </div>
+            </main>
+
+            <aside class="ai-panel" id="aiPanel">
+                <div class="panel-header"><h3>🤖 AI 分析</h3></div>
+
+                <div class="briefing-card" id="briefingCard">
+                    <div class="briefing-title">今日市场简报</div>
+                    <div class="briefing-content" id="briefingContent">
+                        <span class="loading-text">加载中...</span>
+                    </div>
+                </div>
+
+                <div class="analysis-card" id="analysisCard" style="display:none">
+                    <div class="analysis-header">
+                        <span class="analysis-fund-name" id="analysisStockName"></span>
+                        <button class="btn-close" onclick="closeAnalysis()">关闭</button>
+                    </div>
+                    <div class="stock-quick-info" id="stockQuickInfo"></div>
+                    <div class="chart-container" id="chartContainer">
+                        <canvas id="klineChart" height="180"></canvas>
+                    </div>
+                    <div class="analysis-body" id="analysisBody"></div>
+                    <button class="btn-share" onclick="shareAnalysis()" style="display:none" id="btnShare">📤 生成分享图片</button>
+                </div>
+
+                <div class="premium-card">
+                    <div class="premium-icon">🔔</div>
+                    <div class="premium-title">AI异动预警</div>
+                    <div class="premium-desc">你关注的股票有任何风吹草动，AI第一时间帮你解读</div>
+                    <div class="premium-price">
+                        <span class="price-num">9.9</span>
+                        <span class="price-unit">元/月</span>
+                    </div>
+                    <button class="btn-premium" onclick="showPay()">立即订阅</button>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="payModal" style="display:none">
+        <div class="modal">
+            <button class="modal-close" onclick="closePay()">关闭</button>
+            <h3>订阅 AI异动预警</h3>
+            <p>扫码支付 9.9 元/月</p>
+            <div class="qr-placeholder">
+                <div class="qr-icon">📱</div>
+                <p>微信扫码支付</p>
+                <p class="qr-hint">支付后联系客服开通</p>
+            </div>
+            <p class="pay-note">💡 内测期间，扫码支付后截图发给客服，24小时内开通</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

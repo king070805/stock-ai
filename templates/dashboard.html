@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 - 个股智投</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #0d1117; color: #c9d1d9; padding: 24px; min-height: 100vh;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { font-size: 22px; margin-bottom: 4px; color: #fff; }
+        .subtitle { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+        
+        .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+        .metric-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+            text-align: center;
+        }
+        .metric-value { font-size: 28px; font-weight: 800; color: #58a6ff; }
+        .metric-label { font-size: 12px; color: #8b949e; margin-top: 4px; }
+        
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .chart-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+        }
+        .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #fff; }
+        
+        .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 8px; }
+        .bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .bar { width: 100%; max-width: 40px; border-radius: 3px 3px 0 0; transition: height 0.3s; min-height: 2px; }
+        .bar.visits { background: #58a6ff; }
+        .bar.analyses { background: #3fb950; }
+        .bar-label { font-size: 10px; color: #8b949e; margin-top: 4px; }
+        
+        .table-card {
+            background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 8px 12px; color: #8b949e; font-weight: 500; border-bottom: 1px solid #30363d; }
+        td { padding: 8px 12px; border-bottom: 1px solid #21262d; }
+        tr:last-child td { border-bottom: none; }
+        
+        .refresh { font-size: 11px; color: #8b949e; text-align: center; margin-top: 16px; }
+        
+        @media (max-width: 600px) {
+            .metrics { grid-template-columns: repeat(2, 1fr); }
+            .chart-row { grid-template-columns: 1fr; }
+            body { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 个股智投 · 数据看板</h1>
+        <p class="subtitle">实时数据 · 自动刷新</p>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value">{{ total_visits }}</div>
+                <div class="metric-label">累计访问</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ total_analyses }}</div>
+                <div class="metric-label">AI分析次数</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ today_visits }}</div>
+                <div class="metric-label">今日访问</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ today_analyses }}</div>
+                <div class="metric-label">今日分析</div>
+            </div>
+        </div>
+        
+        <div class="chart-row">
+            <div class="chart-card">
+                <div class="chart-title">📈 近7日趋势</div>
+                <div class="bar-chart">
+                    {% for day in recent %}
+                    <div class="bar-group">
+                        <div class="bar visits" style="height: {{ [day.visits * 3, 110]|min if day.visits > 0 else 2 }}px" title="访问: {{ day.visits }}"></div>
+                        <div class="bar analyses" style="height: {{ [day.analyses * 5, 110]|min if day.analyses > 0 else 2 }}px" title="分析: {{ day.analyses }}"></div>
+                        <div class="bar-label">{{ day.date[5:] }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:#8b949e;">
+                    <span>■ 访问</span><span>■ 分析</span>
+                </div>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-title">🔍 最近搜索的股票</div>
+                <table>
+                    <thead><tr><th>代码</th><th>时间</th></tr></thead>
+                    <tbody>
+                        {% for s in recent_searches|reverse %}
+                        <tr><td>{{ s.code }}</td><td>{{ s.time[11:19] if s.time|length > 11 else s.time }}</td></tr>
+                        {% endfor %}
+                        {% if not recent_searches %}
+                        <tr><td colspan="2" style="color:#8b949e">暂无数据</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <p class="refresh">🔄 数据每30秒自动刷新 | 服务运行中</p>
+    </div>
+    
+    <script>
+        setTimeout(function() { location.reload(); }, 30000);
+    </script>
+</body>
+</html>
