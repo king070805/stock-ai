@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from flask import Flask, render_template, request, jsonify
 from services.stock_service import get_stock_list, search_stock, get_stock_detail, get_stock_history
 from services.ai_service import analyze_stock, analyze_portfolio, daily_briefing
+from guxiaozhi.orchestrator import run_analysis, get_user_memory
 
 app = Flask(__name__)
 
@@ -116,29 +117,19 @@ def api_search():
 @app.route("/api/analyze")
 def api_analyze():
     code = request.args.get("code", "")
+    user_id = request.args.get("user_id", None)
     if not code:
         return jsonify({"error": "请提供股票代码"}), 400
     try:
         track_analysis(code)
-        all_stocks = get_stock_list(size=300)
-        detail = None
-        for s in all_stocks:
-            if s["code"] == code:
-                detail = s
-                break
-        if not detail:
-            detail = get_stock_detail(code)
-        if not detail:
-            return jsonify({"error": "未找到股票代码 " + code}), 404
-        try:
-            history = get_stock_history(code, days=30)
-        except:
-            history = None
-        analysis = analyze_stock(detail, history)
-        resp_data = {"stock": detail, "analysis": analysis}
-        if history:
-            resp_data["history"] = history[-30:]
-        return jsonify(resp_data)
+        result = run_analysis(code, user_id=user_id)
+        if "error" in result:
+            return jsonify({"error": result["error"]}), 404
+        return jsonify({
+            "stock": result["stock"],
+            "analysis": result["analysis"],
+            "verdict": result.get("verdict", ""),
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -157,6 +148,19 @@ def api_briefing():
                 break
         briefing = daily_briefing(top)
         return jsonify({"briefing": briefing, "top_stocks": top[:5]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/user/memory")
+def api_user_memory():
+    """获取用户记忆"""
+    user_id = request.args.get("user_id", "")
+    if not user_id:
+        return jsonify({"error": "请提供 user_id"}), 400
+    try:
+        memory = get_user_memory(user_id)
+        return jsonify(memory)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

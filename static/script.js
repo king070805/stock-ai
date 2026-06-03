@@ -2,6 +2,11 @@ var currentMarket = 'a';
 var currentSort = 'amount';
 var watchlist = loadWatchlist();
 var currentStockData = null;
+var userId = localStorage.getItem('guxiaozhi_user_id') || '';
+if (!userId) {
+    userId = 'user_' + crypto.randomUUID().slice(0, 8);
+    localStorage.setItem('guxiaozhi_user_id', userId);
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     loadStocks();
@@ -154,7 +159,7 @@ function analyzeStock(code) {
     var ctx = chartCanvas.getContext('2d');
     ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
 
-    fetch('/api/analyze?code=' + code)
+    fetch('/api/analyze?code=' + code + '&user_id=' + userId)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.error) {
@@ -164,6 +169,20 @@ function analyzeStock(code) {
             currentStockData = data;
             var s = data.stock;
             nameEl.textContent = s.name + ' (' + s.code + ')';
+            var verdict = data.verdict || '';
+            if (verdict) {
+                var verdictEl = document.getElementById('analysisVerdict');
+                if (!verdictEl) {
+                    verdictEl = document.createElement('span');
+                    verdictEl.id = 'analysisVerdict';
+                    verdictEl.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:4px;margin-left:8px;';
+                    nameEl.appendChild(verdictEl);
+                }
+                if (verdict === '关注') verdictEl.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:4px;margin-left:8px;background:rgba(63,185,80,0.15);color:#3fb950;';
+                else if (verdict === '警惕') verdictEl.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:4px;margin-left:8px;background:rgba(248,81,73,0.15);color:#f85149;';
+                else verdictEl.style.cssText = 'font-size:12px;padding:2px 8px;border-radius:4px;margin-left:8px;background:rgba(210,153,29,0.15);color:#d2991d;';
+                verdictEl.textContent = verdict;
+            }
 
             var change = parseFloat(s.change_pct) || 0;
             var cCls = change > 0 ? 'up' : change < 0 ? 'down' : '';
@@ -324,6 +343,43 @@ function drawSimpleBar(canvas, stock) {
 function closeAnalysis() {
     document.getElementById('analysisCard').style.display = 'none';
     currentStockData = null;
+}
+
+function toggleMemory() {
+    var panel = document.getElementById('memoryPanel');
+    if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
+        loadMemory();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function loadMemory() {
+    var el = document.getElementById('memoryContent');
+    el.innerHTML = '<span class="loading-text">加载中...</span>';
+    fetch('/api/user/memory?user_id=' + userId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.queries || data.queries.length === 0) {
+                el.innerHTML = '<span style="color:var(--text-muted)">暂无记录，搜一只股票开始吧</span>';
+                return;
+            }
+            var html = '';
+            data.queries.slice(-10).reverse().forEach(function(q) {
+                var vCls = q.verdict === '关注' ? 'up' : q.verdict === '警惕' ? 'down' : '';
+                html += '<div class="memory-item">' +
+                    '<span class="memory-date">' + (q.date || '') + '</span>' +
+                    '<span class="memory-symbol">' + escHtml(q.symbol) + '</span>' +
+                    '<span class="memory-verdict ' + vCls + '">' + (q.verdict || '') + '</span>' +
+                    '<span class="memory-summary">' + escHtml((q.summary || '').slice(0, 50)) + '</span>' +
+                    '</div>';
+            });
+            el.innerHTML = html;
+        })
+        .catch(function() {
+            el.innerHTML = '<span style="color:var(--down)">加载失败</span>';
+        });
 }
 
 function shareAnalysis() {
