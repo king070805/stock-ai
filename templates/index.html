@@ -1,8 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'">
     <title>股小智 - AI 股票分析</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -14,18 +15,18 @@
                 <span class="brand-name">股小智</span>
             </div>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="输入股票代码或名称...">
-                <div class="search-results" id="searchResults"></div>
+                <input type="text" id="searchInput" placeholder="输入股票代码或名称..." aria-label="搜索股票">
+                <div class="search-results" id="searchResults" role="listbox" aria-label="搜索结果"></div>
             </div>
             <div class="top-actions">
-                <button class="btn-watchlist" onclick="toggleWatchlist()" title="自选股">⭐<span class="watchlist-count" id="watchlistCount">0</span></button>
+                <button class="btn-watchlist" id="btnWatchlist" aria-label="自选股列表">⭐<span class="watchlist-count" id="watchlistCount">0</span></button>
             </div>
         </header>
 
         <div class="watchlist-bar" id="watchlistBar" style="display:none">
             <div class="watchlist-bar-header">
                 <span>⭐ 我的自选</span>
-                <button class="btn-close-sm" onclick="toggleWatchlist()">✕</button>
+                <button class="btn-close-sm" id="btnCloseWatchlist" aria-label="关闭自选股">✕</button>
             </div>
             <div class="watchlist-items" id="watchlistItems">
                 <span class="empty-hint">点击股票行的 ☆ 添加自选</span>
@@ -34,11 +35,11 @@
 
         <div class="main-layout">
             <main class="content">
-                <div class="tabs">
-                    <a href="#" class="tab" data-market="a" data-sort="change">涨跌幅</a>
-                    <a href="#" class="tab active" data-market="a" data-sort="amount">成交额</a>
-                    <a href="#" class="tab" data-market="a" data-sort="volume">成交量</a>
-                    <a href="#" class="tab" data-market="us" data-sort="change">美股</a>
+                <div class="tabs" id="tabBar">
+                    <a href="#" class="tab" data-market="a" data-sort="change" role="tab">涨跌幅</a>
+                    <a href="#" class="tab active" data-market="a" data-sort="amount" role="tab" aria-selected="true">成交额</a>
+                    <a href="#" class="tab" data-market="a" data-sort="volume" role="tab">成交量</a>
+                    <a href="#" class="tab" data-market="us" data-sort="change" role="tab">美股</a>
                 </div>
 
                 <div class="market-status" id="marketStatus">
@@ -47,17 +48,17 @@
                 </div>
 
                 <div class="table-wrap">
-                <table class="stock-table">
+                <table class="stock-table" role="grid" summary="股票行情数据表，包含名称、价格、涨跌幅、成交额、市盈率等信息">
                     <thead>
-                        <tr>
-                            <th class="col-wl"></th>
-                            <th class="col-rank">#</th>
-                            <th class="col-name">名称</th>
-                            <th class="col-price">最新价</th>
-                            <th class="col-change">涨跌幅</th>
-                            <th class="col-change hide-mobile">成交额</th>
-                            <th class="col-change hide-mobile">PE</th>
-                            <th class="col-action"></th>
+                        <tr role="row">
+                            <th class="col-wl" role="columnheader"></th>
+                            <th class="col-rank" role="columnheader">#</th>
+                            <th class="col-name" role="columnheader">名称</th>
+                            <th class="col-price" role="columnheader">最新价</th>
+                            <th class="col-change" role="columnheader">涨跌幅</th>
+                            <th class="col-change hide-mobile" role="columnheader">成交额</th>
+                            <th class="col-change hide-mobile" role="columnheader">PE</th>
+                            <th class="col-action" role="columnheader"></th>
                         </tr>
                     </thead>
                     <tbody id="stockTableBody">
@@ -87,13 +88,14 @@
                     <div class="analysis-header">
                         <span class="analysis-stock-name" id="analysisStockName"></span>
                         <span class="analysis-verdict" id="analysisVerdictBadge"></span>
-                        <button class="btn-close" onclick="closeAnalysis()">✕</button>
+                        <button class="btn-close" id="btnCloseAnalysis" aria-label="关闭分析">✕</button>
                     </div>
 
                     <div class="stock-info-card" id="stockQuickInfo"></div>
 
                     <div class="chart-container" id="chartContainer">
                         <canvas id="klineChart" height="200"></canvas>
+                        <div class="chart-landscape-hint">📱 横屏查看K线图更清晰</div>
                     </div>
 
                     <div class="analysis-chat" id="analysisChat">
@@ -104,8 +106,8 @@
                         </div>
                     </div>
 
-                    <button class="btn-share" onclick="shareAnalysis()" style="display:none" id="btnShare">📤 生成分享图片</button>
-                    <button class="btn-memory" onclick="toggleMemory()">📋 我的足迹</button>
+                    <button class="btn-share" id="btnShare" style="display:none" aria-label="生成分享图片">📤 生成分享图片</button>
+                    <button class="btn-memory" id="btnMemory" aria-label="查看足迹">📋 我的足迹</button>
                     <div class="memory-panel" id="memoryPanel" style="display:none">
                         <div class="memory-content" id="memoryContent"></div>
                     </div>
@@ -119,7 +121,7 @@
                         <span class="price-num">9.9</span>
                         <span class="price-unit">元/月</span>
                     </div>
-                    <button class="btn-premium" onclick="showPay()">立即订阅</button>
+                    <button class="btn-premium" id="btnPremium" aria-label="订阅 AI异动预警">立即订阅</button>
                 </div>
             </aside>
         </div>
@@ -127,19 +129,62 @@
 
     <div class="modal-overlay" id="payModal" style="display:none">
         <div class="modal">
-            <button class="modal-close" onclick="closePay()">关闭</button>
+            <button class="modal-close" id="btnClosePay" aria-label="关闭支付弹窗">关闭</button>
             <h3>订阅 AI异动预警</h3>
             <p>扫码支付 9.9 元/月</p>
             <div class="qr-placeholder">
                 <div class="qr-icon">📱</div>
-                <p>微信扫码支付</p>
-                <p class="qr-hint">支付后联系客服开通</p>
+                <p>功能开发中，敬请期待</p>
+                <p class="qr-hint">即将支持微信/支付宝扫码</p>
             </div>
-            <p class="pay-note">💡 内测期间，扫码支付后截图发给客服，24小时内开通</p>
+            <p class="pay-note">💡 内测期间，请联系客服开通服务</p>
         </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="/static/script.js"></script>
+    <script>
+    // === Keyboard Navigation for Search Results ===
+    (function() {
+        var searchInput = document.getElementById('searchInput');
+        var searchResults = document.getElementById('searchResults');
+        var focusedIdx = -1;
+
+        searchInput.addEventListener('keydown', function(e) {
+            var items = searchResults.querySelectorAll('.search-result-item');
+            if (!items.length || !searchResults.classList.contains('show')) { focusedIdx = -1; return; }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
+                updateFocus(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                focusedIdx = Math.max(focusedIdx - 1, 0);
+                updateFocus(items);
+            } else if (e.key === 'Enter' && focusedIdx >= 0) {
+                e.preventDefault();
+                items[focusedIdx].click();
+                focusedIdx = -1;
+            } else if (e.key === 'Escape') {
+                searchResults.classList.remove('show');
+                focusedIdx = -1;
+            }
+        });
+
+        function updateFocus(items) {
+            items.forEach(function(item, i) {
+                if (i === focusedIdx) {
+                    item.classList.add('keyboard-focused');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('keyboard-focused');
+                }
+            });
+        }
+
+        searchResults.addEventListener('mouseover', function() { focusedIdx = -1; });
+    })();
+    </script>
 </body>
 </html>

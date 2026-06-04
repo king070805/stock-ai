@@ -300,4 +300,49 @@ body {
   .app { padding: 0 10px; }
   .tab { padding: 6px 12px; font-size: 12px; }
   .tabs { overflow-x: auto; width: 100%; }
+}/* === Extra Small Mobile (<=400px) === */
+@media (max-width: 400px) {
+  .search-box { max-width: 130px; }
+  .search-box input { padding: 8px 10px; font-size: 12px; }
+}
+
+/* === Chart Landscape Hint === */
+.chart-landscape-hint {
+  display: none;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 0 8px;
+}
+@media (max-width: 768px) and (orientation: portrait) {
+  .chart-landscape-hint { display: block; }
+}
+
+/* === Analyze Button Loading === */
+.btn-analyze.loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  opacity: 0.7;
+}
+.btn-analyze.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* === Search Keyboard Navigation === */
+.search-result-item.keyboard-focused {
+  background: var(--accent-dim);
+  outline: 1px solid var(--accent);
 }

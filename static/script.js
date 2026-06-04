@@ -1,3 +1,6 @@
+﻿(function() {
+"use strict";
+
 var currentMarket = 'a';
 var currentSort = 'amount';
 var watchlist = loadWatchlist();
@@ -14,7 +17,32 @@ document.addEventListener('DOMContentLoaded', function() {
     setupSearch();
     setupTabs();
     renderWatchlistBar();
+    bindGlobalButtons();
 });
+
+// ========== Global Button Bindings (replace inline onclick) ==========
+function bindGlobalButtons() {
+    var btnWatchlist = document.getElementById('btnWatchlist');
+    if (btnWatchlist) btnWatchlist.addEventListener('click', toggleWatchlist);
+
+    var btnCloseWatchlist = document.getElementById('btnCloseWatchlist');
+    if (btnCloseWatchlist) btnCloseWatchlist.addEventListener('click', toggleWatchlist);
+
+    var btnCloseAnalysis = document.getElementById('btnCloseAnalysis');
+    if (btnCloseAnalysis) btnCloseAnalysis.addEventListener('click', closeAnalysis);
+
+    var btnShare = document.getElementById('btnShare');
+    if (btnShare) btnShare.addEventListener('click', shareAnalysis);
+
+    var btnMemory = document.getElementById('btnMemory');
+    if (btnMemory) btnMemory.addEventListener('click', toggleMemory);
+
+    var btnPremium = document.getElementById('btnPremium');
+    if (btnPremium) btnPremium.addEventListener('click', showPay);
+
+    var btnClosePay = document.getElementById('btnClosePay');
+    if (btnClosePay) btnClosePay.addEventListener('click', closePay);
+}
 
 // ========== Watchlist ==========
 function loadWatchlist() { try { return JSON.parse(localStorage.getItem('stockWatchlist') || '[]'); } catch(e) { return []; } }
@@ -35,8 +63,14 @@ function renderWatchlistBar() {
     var el = document.getElementById('watchlistItems'); var cnt = document.getElementById('watchlistCount'); cnt.textContent = watchlist.length;
     if (watchlist.length === 0) { el.innerHTML = '<span class="empty-hint">点击股票行的 ☆ 添加自选</span>'; return; }
     el.innerHTML = watchlist.map(function(w) {
-        return '<span class="watchlist-tag" data-code="' + w.code + '" onclick="analyzeStock(\'' + w.code + '\')">' + escHtml(w.name) + ' <span class="remove" onclick="event.stopPropagation();removeFromWatchlist(\'' + w.code + '\')">\u00d7</span></span>';
+        return '<span class="watchlist-tag" data-code="' + escHtml(w.code) + '"><span class="tag-name" data-code="' + escHtml(w.code) + '">' + escHtml(w.name) + '</span> <span class="remove" data-code="' + escHtml(w.code) + '">\u00d7</span></span>';
     }).join('');
+    el.querySelectorAll('.tag-name').forEach(function(span) {
+        span.addEventListener('click', function() { analyzeStock(span.getAttribute('data-code')); });
+    });
+    el.querySelectorAll('.remove').forEach(function(span) {
+        span.addEventListener('click', function(e) { e.stopPropagation(); removeFromWatchlist(span.getAttribute('data-code')); });
+    });
 }
 function removeFromWatchlist(code) { watchlist = watchlist.filter(function(w) { return w.code !== code; }); saveWatchlist(); renderWatchlistBar(); loadStocks(); }
 
@@ -51,67 +85,79 @@ function loadStocks() {
         .then(function(data) {
             if (data.error) throw new Error(data.error);
             if (!data.stocks || data.stocks.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="loading-row">暂无数据</td></tr>';
-                st.innerHTML = '<span class="status-dot closed"></span><span class="status-text">休市中</span>'; return;
+                var msg = currentMarket === 'us' ? '数据暂不可用' : '暂无数据';
+                var statusIcon = currentMarket === 'us' ? 'closed' : 'closed';
+                tbody.innerHTML = '<tr><td colspan="8" class="loading-row">' + escHtml(msg) + '</td></tr>';
+                st.innerHTML = '<span class="status-dot ' + statusIcon + '"></span><span class="status-text">休市中</span>'; return;
             }
             st.innerHTML = '<span class="status-dot open"></span><span class="status-text">实时数据</span>';
             var rows = '';
             data.stocks.forEach(function(s, i) {
                 var chg = parseFloat(s.change_pct) || 0; var cls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
                 var sign = chg > 0 ? '+' : ''; var starred = isStarred(s.code);
-                rows += '<tr class="stock-row" data-code="' + s.code + '">' +
-                    '<td class="col-wl"><button class="btn-star ' + (starred ? 'starred' : '') + '" data-code="' + s.code + '" data-name="' + escHtml(s.name) + '">' + (starred ? '\u2605' : '\u2606') + '</button></td>' +
+                rows += '<tr class="stock-row" data-code="' + escHtml(s.code) + '">' +
+                    '<td class="col-wl"><button class="btn-star ' + (starred ? 'starred' : '') + '" data-code="' + escHtml(s.code) + '" data-name="' + escHtml(s.name) + '">' + (starred ? '\u2605' : '\u2606') + '</button></td>' +
                     '<td class="col-rank">' + (i + 1) + '</td>' +
-                    '<td class="col-name"><span class="stock-name">' + escHtml(s.name) + '</span><span class="stock-code">' + s.code + '</span></td>' +
-                    '<td class="col-price">' + (s.price || '-') + '</td>' +
-                    '<td class="col-change ' + cls + '">' + sign + (s.change_pct || '-') + '%</td>' +
-                    '<td class="col-change hide-mobile">' + (s.amount || '-') + '</td>' +
-                    '<td class="col-change hide-mobile">' + (s.pe || '-') + '</td>' +
-                    '<td class="col-action"><button class="btn-analyze" data-code="' + s.code + '">AI分析</button></td></tr>';
+                    '<td class="col-name"><span class="stock-name">' + escHtml(s.name) + '</span><span class="stock-code">' + escHtml(s.code) + '</span></td>' +
+                    '<td class="col-price">' + escHtml(s.price || '-') + '</td>' +
+                    '<td class="col-change ' + cls + '">' + sign + escHtml(s.change_pct || '-') + '%</td>' +
+                    '<td class="col-change hide-mobile">' + escHtml(s.amount || '-') + '</td>' +
+                    '<td class="col-change hide-mobile">' + escHtml(s.pe || '-') + '</td>' +
+                    '<td class="col-action"><button class="btn-analyze" data-code="' + escHtml(s.code) + '">AI分析</button></td></tr>';
             });
             tbody.innerHTML = rows;
             document.querySelectorAll('.btn-star').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); toggleWatchlistStar(b.getAttribute('data-code'), b.getAttribute('data-name'), b); }); });
-            document.querySelectorAll('.btn-analyze').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); analyzeStock(b.getAttribute('data-code')); }); });
+            document.querySelectorAll('.btn-analyze').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); analyzeStock(b.getAttribute('data-code'), b); }); });
             document.querySelectorAll('.stock-row').forEach(function(r) { r.addEventListener('click', function() { analyzeStock(r.getAttribute('data-code')); }); });
         })
-        .catch(function() { tbody.innerHTML = '<tr><td colspan="8" class="loading-row">加载失败，<a href="#" onclick="loadStocks()" style="color:var(--accent)">重试</a></td></tr>'; st.innerHTML = '<span class="status-dot error"></span><span class="status-text">连接失败</span>'; });
+        .catch(function() { tbody.innerHTML = '<tr><td colspan="8" class="loading-row">加载失败，<a href="#" id="retryLink" style="color:var(--accent)">重试</a></td></tr>'; st.innerHTML = '<span class="status-dot error"></span><span class="status-text">连接失败</span>'; var rl = document.getElementById('retryLink'); if (rl) rl.addEventListener('click', function(e) { e.preventDefault(); loadStocks(); }); });
 }
 
 // ========== Briefing ==========
 function loadBriefing() {
     var el = document.getElementById('briefingContent');
     fetch('/api/briefing').then(function(r) { return r.json(); }).then(function(d) {
-        el.innerHTML = d.briefing ? d.briefing.replace(/\n/g, '<br>') : '简报生成中...';
+        el.innerHTML = d.briefing ? escHtml(d.briefing).replace(/\n/g, '<br>') : '简报生成中...';
     }).catch(function() { el.innerHTML = '简报暂不可用'; });
 }
 
 // ========== AI Analysis ==========
-function analyzeStock(code) {
+function analyzeStock(code, btnEl) {
     var card = document.getElementById('analysisCard'); var nameEl = document.getElementById('analysisStockName');
     var infoEl = document.getElementById('stockQuickInfo'); var bodyEl = document.getElementById('analysisBody');
     var chartCanvas = document.getElementById('klineChart'); var shareBtn = document.getElementById('btnShare');
     var verdictBadge = document.getElementById('analysisVerdictBadge');
+
     card.style.display = 'block'; nameEl.textContent = '分析中...'; infoEl.innerHTML = '';
     bodyEl.innerHTML = '<span style="color:var(--text-muted)">AI正在深度分析，约需5秒...</span>';
     shareBtn.style.display = 'none'; verdictBadge.style.display = 'none';
+
+    // Loading animation on the triggering button
+    var triggerBtn = btnEl || document.querySelector('.btn-analyze[data-code="' + code + '"]');
+    if (triggerBtn) { triggerBtn.classList.add('loading'); triggerBtn.textContent = ''; }
+
     var ctx = chartCanvas.getContext('2d'); ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
 
     fetch('/api/analyze?code=' + code + '&user_id=' + userId)
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.error) { bodyEl.innerHTML = '<span style="color:var(--down)">' + escHtml(data.error) + '</span>'; return; }
+            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+            if (data.error) {
+                bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">⚠️ 分析失败</div><div style="color:var(--text-secondary);font-size:12px">' + escHtml(data.error) + '</div>';
+                return;
+            }
             currentStockData = data; var s = data.stock;
             nameEl.textContent = s.name + ' (' + s.code + ')';
             var chg = parseFloat(s.change_pct) || 0; var cCls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
             var sign = chg > 0 ? '+' : '';
 
             infoEl.innerHTML =
-                '<div class="stock-info-item"><span class="info-label">最新价</span><span class="info-value">' + (s.price || '-') + '</span></div>' +
-                '<div class="stock-info-item"><span class="info-label">涨跌幅</span><span class="info-value ' + cCls + '">' + sign + (s.change_pct || '-') + '%</span></div>' +
-                '<div class="stock-info-item"><span class="info-label">成交额</span><span class="info-value">' + (s.amount || '-') + '</span></div>' +
-                '<div class="stock-info-item"><span class="info-label">市盈率</span><span class="info-value">' + (s.pe || '-') + '</span></div>';
+                '<div class="stock-info-item"><span class="info-label">最新价</span><span class="info-value">' + escHtml(s.price || '-') + '</span></div>' +
+                '<div class="stock-info-item"><span class="info-label">涨跌幅</span><span class="info-value ' + cCls + '">' + sign + escHtml(s.change_pct || '-') + '%</span></div>' +
+                '<div class="stock-info-item"><span class="info-label">成交额</span><span class="info-value">' + escHtml(s.amount || '-') + '</span></div>' +
+                '<div class="stock-info-item"><span class="info-label">市盈率</span><span class="info-value">' + escHtml(s.pe || '-') + '</span></div>';
 
-            bodyEl.innerHTML = (data.analysis || '').replace(/\n/g, '<br>');
+            bodyEl.innerHTML = escHtml(data.analysis || '暂无分析结果').replace(/\n/g, '<br>');
             shareBtn.style.display = 'block';
 
             var verdict = data.verdict || '';
@@ -126,7 +172,10 @@ function analyzeStock(code) {
             else drawSimpleBar(chartCanvas, s);
             card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         })
-        .catch(function() { bodyEl.innerHTML = '<span style="color:var(--down)">分析失败，请重试</span>'; });
+        .catch(function() {
+            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+            bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">⚠️ 军师离线</div><div style="color:var(--text-secondary);font-size:12px">AI服务暂时不可用，请稍后重试</div>';
+        });
 }
 
 function closeAnalysis() { document.getElementById('analysisCard').style.display = 'none'; currentStockData = null; }
@@ -203,7 +252,7 @@ function loadMemory() {
         var html = '';
         data.queries.slice(-10).reverse().forEach(function(q) {
             var vCls = q.verdict === '\u5173\u6ce8' ? 'up' : q.verdict === '\u8b66\u60d5' ? 'down' : '';
-            html += '<div class="memory-item"><span class="memory-date">' + (q.date || '') + '</span><span class="memory-symbol">' + escHtml(q.symbol) + '</span><span class="memory-verdict ' + vCls + '">' + (q.verdict || '') + '</span><span class="memory-summary">' + escHtml((q.summary || '').slice(0, 50)) + '</span></div>';
+            html += '<div class="memory-item"><span class="memory-date">' + escHtml(q.date || '') + '</span><span class="memory-symbol">' + escHtml(q.symbol) + '</span><span class="memory-verdict ' + vCls + '">' + escHtml(q.verdict || '') + '</span><span class="memory-summary">' + escHtml((q.summary || '').slice(0, 50)) + '</span></div>';
         });
         el.innerHTML = html;
     }).catch(function() { el.innerHTML = '<span style="color:var(--down)">加载失败</span>'; });
@@ -219,14 +268,14 @@ function searchStocks(q, resultsEl) {
     resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--text-muted)">搜索中...</div>'; resultsEl.classList.add('show');
     fetch('/api/search?q=' + encodeURIComponent(q)).then(function(r) { return r.json(); }).then(function(data) {
         if (!data.results || !data.results.length) { resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--text-muted)">未找到</div>'; return; }
-        resultsEl.innerHTML = data.results.map(function(s) { return '<div class="search-result-item" data-code="' + s.code + '"><span class="sr-name">' + escHtml(s.name) + '</span><span class="sr-code">' + s.code + '</span></div>'; }).join('');
+        resultsEl.innerHTML = data.results.map(function(s) { return '<div class="search-result-item" data-code="' + escHtml(s.code) + '" role="option"><span class="sr-name">' + escHtml(s.name) + '</span><span class="sr-code">' + escHtml(s.code) + '</span></div>'; }).join('');
         resultsEl.querySelectorAll('.search-result-item').forEach(function(item) { item.addEventListener('click', function() { analyzeStock(item.getAttribute('data-code')); resultsEl.classList.remove('show'); document.getElementById('searchInput').value = ''; }); });
     }).catch(function() { resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--down)">搜索失败</div>'; });
 }
 
 // ========== Tabs ==========
 function setupTabs() {
-    document.querySelectorAll('.tab').forEach(function(tab) { tab.addEventListener('click', function(e) { e.preventDefault(); document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); }); tab.classList.add('active'); currentMarket = tab.getAttribute('data-market'); currentSort = tab.getAttribute('data-sort'); loadStocks(); }); });
+    document.querySelectorAll('.tab').forEach(function(tab) { tab.addEventListener('click', function(e) { e.preventDefault(); document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); }); tab.classList.add('active'); tab.setAttribute('aria-selected', 'true'); currentMarket = tab.getAttribute('data-market'); currentSort = tab.getAttribute('data-sort'); loadStocks(); }); });
 }
 
 // ========== Payment ==========
@@ -238,3 +287,5 @@ function showToast(msg) { var t = document.getElementById('toast'); t.textConten
 
 // ========== Util ==========
 function escHtml(s) { if (!s) return ''; return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+})();
