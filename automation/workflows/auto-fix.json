@@ -1,0 +1,98 @@
+{
+  "name": "股小智 · 代码自动修复",
+  "nodes": [
+    {
+      "parameters": {
+        "events": ["error"],
+        "workflowId": [
+          "={{ $env.STOCK_WORKFLOW_IDS }}"
+        ]
+      },
+      "name": "监听工作流错误",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\n\nconst bugReport = {\n  timestamp: new Date().toISOString(),\n  workflow: error.workflow?.name || 'unknown',\n  node: error.execution?.lastNodeExecuted || 'unknown',\n  error_message: error.execution?.error?.message || 'No message',\n  error_stack: error.execution?.error?.stack || 'No stack',\n  execution_id: error.execution?.id\n};\n\nreturn [{json: bugReport}];"
+      },
+      "name": "提取错误信息",
+      "type": "n8n-nodes-base.code",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.CODEX_API_URL }}/v1/chat/completions",
+        "method": "POST",
+        "body": {
+          "model": "codex",
+          "messages": [
+            {
+              "role": "system",
+              "content": "你是一个专业的Python后端开发工程师，专门修复Flask项目的bug。请分析错误信息，给出修复方案，并输出可以直接替换的代码片段。"
+            },
+            {
+              "role": "user",
+              "content": "=错误信息:\\n工作流: {{ $json.workflow }}\\n节点: {{ $json.node }}\\n错误: {{ $json.error_message }}\\n堆栈: {{ $json.error_stack }}\\n\\n请分析这个错误并给出修复方案。"
+            }
+          ],
+          "temperature": 0.3
+        },
+        "options": {}
+      },
+      "name": "Codex分析修复",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const codexResponse = $input.first().json;\nconst fix = codexResponse.choices?.[0]?.message?.content || 'No fix generated';\n\n// 解析代码块\nconst codeBlocks = fix.match(/```[\\w]*\\n([\\s\\S]*?)```/g) || [];\nconst extractedCode = codeBlocks.map(block => \n  block.replace(/```[\\w]*\\n/, '').replace(/```$/, '')\n).join('\\n\\n');\n\nreturn [{\n  json: {\n    fix_description: fix.slice(0, 500),\n    code_changes: extractedCode,\n    original_error: $input.first().json\n  }\n}];"
+      },
+      "name": "提取修复代码",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "owner": "={{ $env.GITHUB_OWNER }}",
+        "repository": "={{ $env.GITHUB_REPO }}",
+        "title": "=🐛 自动修复: {{ $json.original_error.workflow }} - {{ $json.original_error.node }}",
+        "body": "=## 错误信息\\n- 时间: {{ $json.original_error.timestamp }}\\n- 工作流: {{ $json.original_error.workflow }}\\n- 节点: {{ $json.original_error.node }}\\n- 错误: {{ $json.original_error.error_message }}\\n\\n## AI修复方案\\n{{ $json.fix_description }}\\n\\n## 代码变更\\n```python\\n{{ $json.code_changes }}\\n```",
+        "labels": ["auto-fix", "bug"]
+      },
+      "name": "创建GitHub PR",
+      "type": "n8n-nodes-base.github",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_CHANNEL }}",
+        "text": "=🤖 自动修复报告\\n\\n工作流: {{ $json.original_error.workflow }}\\n节点: {{ $json.original_error.node }}\\n状态: PR已创建\\n\\n修复摘要: {{ $json.fix_description.slice(0,200) }}"
+      },
+      "name": "通知开发团队",
+      "type": "n8n-nodes-base.slack",
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "监听工作流错误": {
+      "main": [[{"node": "提取错误信息", "type": "main", "index": 0}]]
+    },
+    "提取错误信息": {
+      "main": [[{"node": "Codex分析修复", "type": "main", "index": 0}]]
+    },
+    "Codex分析修复": {
+      "main": [[{"node": "提取修复代码", "type": "main", "index": 0}]]
+    },
+    "提取修复代码": {
+      "main": [[{"node": "创建GitHub PR", "type": "main", "index": 0}]]
+    },
+    "创建GitHub PR": {
+      "main": [[{"node": "通知开发团队", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["股小智", "自动修复", "Codex"]
+}

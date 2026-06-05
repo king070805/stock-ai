@@ -1,0 +1,80 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: guxiaozhi-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678}
+      - GENERIC_TIMEZONE=Asia/Shanghai
+      - TZ=Asia/Shanghai
+      # 股小智项目API
+      - STOCK_API_URL=${STOCK_API_URL:-http://host.docker.internal:5000}
+      # 小红书API（需自行接入第三方服务）
+      - XIAOHONGSHU_API_URL=${XIAOHONGSHU_API_URL}
+      # 微信Webhook（企业微信/飞书机器人）
+      - WECHAT_WEBHOOK_URL=${WECHAT_WEBHOOK_URL}
+      # 邮件告警
+      - ALERT_EMAIL_FROM=${ALERT_EMAIL_FROM}
+      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      # Codex API
+      - CODEX_API_URL=${CODEX_API_URL}
+      - CODEX_API_KEY=${CODEX_API_KEY}
+      # GitHub
+      - GITHUB_OWNER=${GITHUB_OWNER}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      # Slack/飞书通知
+      - SLACK_CHANNEL=${SLACK_CHANNEL}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      # 工作流ID（用于错误监听）
+      - STOCK_WORKFLOW_IDS=${STOCK_WORKFLOW_IDS}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/backup/workflows:ro
+      - ./scripts:/backup/scripts:ro
+      - n8n_reports:/data/dashboard-reports
+    networks:
+      - guxiaozhi-net
+    # 如果需要连接本地Flask项目，使用host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # 可选：PostgreSQL作为n8n数据库（生产环境推荐）
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: guxiaozhi-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=n8n
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+  #     - POSTGRES_DB=n8n
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - guxiaozhi-net
+
+volumes:
+  n8n_data:
+    driver: local
+  n8n_reports:
+    driver: local
+  # postgres_data:
+  #   driver: local
+
+networks:
+  guxiaozhi-net:
+    driver: bridge

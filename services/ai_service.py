@@ -1,16 +1,18 @@
 # services/ai_service.py - DeepSeek AI 股票分析服务
+import os
 import requests
 import json
 
-DEEPSEEK_API_KEY = "sk-02582c0bb09b4099be5dfa14c652ce07"
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 SYSTEM_PROMPT = """你是一位专业的股票分析师，风格犀利、直接、说人话。
 你的分析必须包含：
 1. 一句话总结当前状态（强势/弱势/震荡，为什么）
-2. 关键风险点（一个就够了，不要列一堆）
-3. 值得关注的一个信号（技术面或基本面，说清楚逻辑）
-规则：总字数不超过200字，不要"仅供参考"之类的免责声明，不要说"建议买入/卖出"，用"关注""警惕""留意"这类词。"""
+2. 政策/行业动态（如果有相关政策利好或利空，一句话说明影响）
+3. 关键风险点（一个就够了，不要列一堆）
+4. 值得关注的一个信号（技术面或基本面，说清楚逻辑）
+规则：总字数不超过250字，不要"仅供参考"之类的免责声明，不要说"建议买入/卖出"，用"关注""警惕""留意"这类词。"""
 
 
 def analyze_stock(stock_info, history=None):

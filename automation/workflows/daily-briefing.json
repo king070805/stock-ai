@@ -1,0 +1,102 @@
+{
+  "name": "股小智 · 每日简报自动化",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "name": "每日早9点触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/stocks?market=a&sort=change&size=10",
+        "options": {}
+      },
+      "name": "获取TOP10涨跌股",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/stocks?market=a&sort=amount&size=10",
+        "options": {}
+      },
+      "name": "获取TOP10成交额",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/briefing",
+        "options": {}
+      },
+      "name": "生成AI市场简报",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const topGainers = $input.first().json.stocks || [];\nconst topVolume = $input.all()[1].json.stocks || [];\nconst briefing = $input.all()[2].json.briefing || '今日市场简报生成中...';\n\nconst content = `📊 今日市场简报\\n\\n${briefing}\\n\\n🔥 涨幅TOP5:\\n${topGainers.slice(0,5).map((s,i) => `${i+1}. ${s.name}(${s.code}) +${s.change_pct}%`).join('\\n')}\\n\\n💰 成交TOP5:\\n${topVolume.slice(0,5).map((s,i) => `${i+1}. ${s.name}(${s.code}) 成交${s.amount}`).join('\\n')}\\n\\n#股票 #A股 #AI分析 #股小智`;\n\nreturn [{json: {content, date: new Date().toISOString().split('T')[0]}}];"
+      },
+      "name": "组装小红书文案",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.XIAOHONGSHU_API_URL }}",
+        "method": "POST",
+        "body": {
+          "content": "={{ $json.content }}"
+        },
+        "options": {}
+      },
+      "name": "发布到小红书",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_CHANNEL }}",
+        "text": "=✅ 每日简报已发布\\n日期: {{ $json.date }}\\n状态: {{ $json.success ? '成功' : '失败' }}"
+      },
+      "name": "通知Slack/飞书",
+      "type": "n8n-nodes-base.slack",
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "每日早9点触发": {
+      "main": [[{"node": "获取TOP10涨跌股", "type": "main", "index": 0}]]
+    },
+    "获取TOP10涨跌股": {
+      "main": [[{"node": "获取TOP10成交额", "type": "main", "index": 0}]]
+    },
+    "获取TOP10成交额": {
+      "main": [[{"node": "生成AI市场简报", "type": "main", "index": 0}]]
+    },
+    "生成AI市场简报": {
+      "main": [[{"node": "组装小红书文案", "type": "main", "index": 0}]]
+    },
+    "组装小红书文案": {
+      "main": [[{"node": "发布到小红书", "type": "main", "index": 0}]]
+    },
+    "发布到小红书": {
+      "main": [[{"node": "通知Slack/飞书", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["股小智", "每日简报", "小红书"]
+}

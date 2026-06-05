@@ -1,0 +1,106 @@
+{
+  "name": "股小智 · 用户异动预警",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "每30分钟巡检",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/stocks?market=a&sort=change&size=100",
+        "options": {}
+      },
+      "name": "获取全市场数据",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stocks = $input.first().json.stocks || [];\nconst alerts = [];\n\nstocks.forEach(s => {\n  const chg = parseFloat(s.change_pct) || 0;\n  const vol = parseFloat(s.volume_ratio) || 0;\n  \n  // 异动规则：涨跌幅>5% 或 量比>3\n  if (Math.abs(chg) > 5 || vol > 3) {\n    alerts.push({\n      code: s.code,\n      name: s.name,\n      change_pct: chg,\n      volume_ratio: vol,\n      price: s.price,\n      amount: s.amount,\n      alert_type: Math.abs(chg) > 5 ? '大幅波动' : '量能异动'\n    });\n  }\n});\n\nreturn alerts.map(a => ({json: a}));"
+      },
+      "name": "筛选异动股票",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/user/memory?user_id=all",
+        "options": {}
+      },
+      "name": "获取用户关注清单",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const alerts = $input.all().filter(i => i.json.code).map(i => i.json);\nconst users = $input.all().filter(i => i.json.watchlist).map(i => i.json);\n\nconst notifications = [];\nusers.forEach(user => {\n  const userAlerts = alerts.filter(a => \n    user.watchlist.some(w => w.symbol === a.code)\n  );\n  if (userAlerts.length > 0) {\n    notifications.push({\n      user_id: user.user_id,\n      alerts: userAlerts,\n      message: userAlerts.map(a => \n        `🚨 ${a.name}(${a.code}) ${a.alert_type}\\n涨跌: ${a.change_pct > 0 ? '+' : ''}${a.change_pct}%\\n价格: ${a.price}\\n成交: ${a.amount}`\n      ).join('\\n\\n')\n    });\n  }\n});\n\nreturn notifications.map(n => ({json: n}));"
+      },
+      "name": "匹配用户关注",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.WECHAT_WEBHOOK_URL }}",
+        "method": "POST",
+        "body": {
+          "msgtype": "text",
+          "text": {
+            "content": "={{ $json.message }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "推送微信通知",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERT_EMAIL_FROM }}",
+        "toEmail": "={{ $env.ALERT_EMAIL_TO }}",
+        "subject": "=🚨 股小智异动预警 - {{ $json.alerts.length }}只股票",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "name": "发送邮件备份",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [1050, 500]
+    }
+  ],
+  "connections": {
+    "每30分钟巡检": {
+      "main": [[{"node": "获取全市场数据", "type": "main", "index": 0}]]
+    },
+    "获取全市场数据": {
+      "main": [[{"node": "筛选异动股票", "type": "main", "index": 0}]]
+    },
+    "筛选异动股票": {
+      "main": [[{"node": "匹配用户关注", "type": "main", "index": 0}]]
+    },
+    "获取用户关注清单": {
+      "main": [[{"node": "匹配用户关注", "type": "main", "index": 1}]]
+    },
+    "匹配用户关注": {
+      "main": [
+        [{"node": "推送微信通知", "type": "main", "index": 0}],
+        [{"node": "发送邮件备份", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["股小智", "异动预警", "监控"]
+}

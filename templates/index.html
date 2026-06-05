@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'">
     <title>股小智 - AI 股票分析</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -11,11 +11,16 @@
     <div class="app">
         <header class="topbar">
             <div class="brand">
-                <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3" y="18" width="3" height="4" rx="1" fill="#58a6ff"/><rect x="9" y="10" width="3" height="12" rx="1" fill="#58a6ff"/><rect x="15" y="4" width="3" height="18" rx="1" fill="#3fb950"/><circle cx="16.5" cy="4" r="3" fill="#3fb950" opacity="0.3"/></svg>
+                <svg class="brand-icon" width="28" height="28" viewBox="0 0 28 28" fill="none">
+                  <circle cx="14" cy="14" r="13" stroke="#F0B90B" stroke-width="1.5" opacity="0.3"/>
+                  <path d="M14 4 L18 10 L22 8 L20 14 L24 16 L18 18 L16 24 L12 20 L8 22 L10 16 L6 14 L12 12 Z" fill="#F0B90B" opacity="0.9"/>
+                  <circle cx="14" cy="13" r="2" fill="#1a1a1a"/>
+                </svg>
                 <span class="brand-name">股小智</span>
             </div>
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="输入股票代码或名称..." aria-label="搜索股票">
+                <button class="search-clear" id="searchClear" aria-label="清空搜索">✕</button>
                 <div class="search-results" id="searchResults" role="listbox" aria-label="搜索结果"></div>
             </div>
             <div class="top-actions">
@@ -23,13 +28,21 @@
             </div>
         </header>
 
-        <div class="watchlist-bar" id="watchlistBar" style="display:none">
-            <div class="watchlist-bar-header">
+        <div class="sector-filter-bar" id="sectorFilterBar">
+            <button class="sector-filter-btn active" data-sector="all">全部</button>
+            <button class="sector-filter-btn" data-sector="ai">🤖 AI算力</button>
+            <button class="sector-filter-btn" data-sector="ev">🚁 低空经济</button>
+            <button class="sector-filter-btn" data-sector="dividend">💰 高股息</button>
+        </div>
+
+        <div class="watchlist-drawer-overlay" id="watchlistOverlay"></div>
+        <div class="watchlist-drawer" id="watchlistDrawer">
+            <div class="watchlist-drawer-header">
                 <span>⭐ 我的自选</span>
-                <button class="btn-close-sm" id="btnCloseWatchlist" aria-label="关闭自选股">✕</button>
+                <button class="btn-close" id="btnCloseWatchlist" aria-label="关闭自选股">✕</button>
             </div>
-            <div class="watchlist-items" id="watchlistItems">
-                <span class="empty-hint">点击股票行的 ☆ 添加自选</span>
+            <div class="watchlist-drawer-body" id="watchlistDrawerBody">
+                <span class="empty-hint" id="watchlistEmpty">点击股票行的 ☆ 添加自选</span>
             </div>
         </div>
 
@@ -42,27 +55,32 @@
                     <a href="#" class="tab" data-market="us" data-sort="change" role="tab">美股</a>
                 </div>
 
+                <div class="us-data-banner" id="usDataBanner">🌐 美股数据来自 Yahoo Finance，可能存在延迟</div>
+
                 <div class="market-status" id="marketStatus">
                     <span class="status-dot"></span>
                     <span class="status-text">加载中...</span>
                 </div>
 
                 <div class="table-wrap">
-                <table class="stock-table" role="grid" summary="股票行情数据表，包含名称、价格、涨跌幅、成交额、市盈率等信息">
+                <table class="stock-table" role="grid" summary="股票行情数据表，包含名称、价格、涨跌幅、业务标签、股息率、热度等信息">
                     <thead>
                         <tr role="row">
                             <th class="col-wl" role="columnheader"></th>
-                            <th class="col-rank" role="columnheader">#</th>
-                            <th class="col-name" role="columnheader">名称</th>
-                            <th class="col-price" role="columnheader">最新价</th>
-                            <th class="col-change" role="columnheader">涨跌幅</th>
-                            <th class="col-change hide-mobile" role="columnheader">成交额</th>
-                            <th class="col-change hide-mobile" role="columnheader">PE</th>
+                            <th class="col-rank" role="columnheader" aria-sort="none">#</th>
+                            <th class="col-name" role="columnheader" aria-sort="none">名称 <span class="sort-arrow">↕</span></th>
+                            <th class="col-tag" role="columnheader">赛道</th>
+                            <th class="col-price" role="columnheader" aria-sort="none">最新价 <span class="sort-arrow">↕</span></th>
+                            <th class="col-change" role="columnheader" aria-sort="none">涨跌幅 <span class="sort-arrow">↕</span></th>
+                            <th class="col-change hide-mobile" role="columnheader" aria-sort="none">成交额</th>
+                            <th class="col-dividend hide-mobile" role="columnheader">股息率</th>
+                            <th class="col-change hide-mobile" role="columnheader" aria-sort="none">PE</th>
+                            <th class="col-heat" role="columnheader">热度</th>
                             <th class="col-action" role="columnheader"></th>
                         </tr>
                     </thead>
                     <tbody id="stockTableBody">
-                        <tr><td colspan="8" class="loading-row">加载中...</td></tr>
+                        <tr><td colspan="11" class="loading-row">加载中...</td></tr>
                     </tbody>
                 </table>
                 </div>
@@ -72,6 +90,11 @@
                 <div class="panel-header">
                     <div class="ai-avatar">🤖</div>
                     <span>股小智 · 军师</span>
+                </div>
+
+                <div class="sector-heat-card" id="sectorHeatCard" style="display:none">
+                    <div class="sector-heat-title">🔥 今日赛道热度</div>
+                    <div class="sector-heat-list" id="sectorHeatList"></div>
                 </div>
 
                 <div class="briefing-card" id="briefingCard">
@@ -84,7 +107,7 @@
                     </div>
                 </div>
 
-                <div class="analysis-card" id="analysisCard" style="display:none">
+                <div class="analysis-card" id="analysisCard" style="display:none" tabindex="-1">
                     <div class="analysis-header">
                         <span class="analysis-stock-name" id="analysisStockName"></span>
                         <span class="analysis-verdict" id="analysisVerdictBadge"></span>
@@ -95,16 +118,35 @@
 
                     <div class="chart-container" id="chartContainer">
                         <canvas id="klineChart" height="200"></canvas>
+                        <div class="chart-crosshair-x" id="crosshairX"></div>
+                        <div class="chart-crosshair-y" id="crosshairY"></div>
+                        <div class="chart-crosshair-label" id="crosshairLabel"></div>
                         <div class="chart-landscape-hint">📱 横屏查看K线图更清晰</div>
+                    </div>
+
+                    <div class="policy-wind neutral" id="policyWind" style="display:none">
+                        <div class="pw-title">📋 政策风向 <span class="pw-badge" id="pwBadge">本周</span></div>
+                        <div class="pw-text" id="pwText"></div>
                     </div>
 
                     <div class="analysis-chat" id="analysisChat">
                         <div class="chat-avatar">🤖</div>
                         <div class="chat-bubble ai-bubble">
-                            <div class="chat-label">军师分析</div>
+                            <div class="analysis-title-decor"><span>军师分析</span></div>
                             <div class="chat-text" id="analysisBody">分析中...</div>
+                            <div class="analysis-basis" id="analysisBasis" style="display:none">
+                                <button class="analysis-basis-toggle" id="basisToggle">📊 查看分析依据</button>
+                                <div class="analysis-basis-content" id="basisContent"></div>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="related-news" id="relatedNews" style="display:none">
+                        <button class="related-news-toggle" id="newsToggle">📰 相关动态 <span class="rn-arrow">▼</span></button>
+                        <div class="related-news-list" id="newsList"></div>
+                    </div>
+
+                    <div class="data-benchmark" id="dataBenchmark" style="display:none"></div>
 
                     <button class="btn-share" id="btnShare" style="display:none" aria-label="生成分享图片">📤 生成分享图片</button>
                     <button class="btn-memory" id="btnMemory" aria-label="查看足迹">📋 我的足迹</button>
@@ -125,65 +167,69 @@
                 </div>
             </aside>
         </div>
+
+        <footer class="app-footer">
+            <div><a href="#">关于股小智</a><a href="#">反馈建议</a><a href="#">使用帮助</a></div>
+            <span>© 2026 股小智 · AI 驱动的智能股票分析工具</span>
+            <span style="color:var(--text-muted);font-size:10px">⚠️ AI分析仅供参考，不构成投资建议。投资有风险，入市需谨慎。</span>
+        </footer>
     </div>
 
     <div class="modal-overlay" id="payModal" style="display:none">
         <div class="modal">
-            <button class="modal-close" id="btnClosePay" aria-label="关闭支付弹窗">关闭</button>
+            <button class="modal-close" id="btnClosePay" aria-label="关闭">✕</button>
             <h3>订阅 AI异动预警</h3>
-            <p>扫码支付 9.9 元/月</p>
+            <p>每月 9.9 元，AI 实时盯盘</p>
             <div class="qr-placeholder">
-                <div class="qr-icon">📱</div>
-                <p>功能开发中，敬请期待</p>
-                <p class="qr-hint">即将支持微信/支付宝扫码</p>
+                <div class="qr-icon">📧</div>
+                <p>输入邮箱接收开通链接</p>
+                <input type="email" id="payEmail" placeholder="your@email.com" style="margin-top:8px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:13px;width:80%">
             </div>
-            <p class="pay-note">💡 内测期间，请联系客服开通服务</p>
+            <button class="btn-premium" id="btnPaySubmit" style="font-size:13px;padding:8px 24px">提交订阅</button>
+            <p class="pay-note">💡 内测期间，提交邮箱后24小时内开通</p>
         </div>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="/static/script.js"></script>
     <script>
-    // === Keyboard Navigation for Search Results ===
     (function() {
         var searchInput = document.getElementById('searchInput');
         var searchResults = document.getElementById('searchResults');
+        var searchClear = document.getElementById('searchClear');
         var focusedIdx = -1;
+
+        searchClear.addEventListener('click', function() {
+            searchInput.value = '';
+            searchClear.classList.remove('visible');
+            searchResults.classList.remove('show');
+            searchInput.focus();
+        });
+        searchInput.addEventListener('input', function() {
+            searchClear.classList.toggle('visible', searchInput.value.length > 0);
+        });
 
         searchInput.addEventListener('keydown', function(e) {
             var items = searchResults.querySelectorAll('.search-result-item');
             if (!items.length || !searchResults.classList.contains('show')) { focusedIdx = -1; return; }
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
-                updateFocus(items);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                focusedIdx = Math.max(focusedIdx - 1, 0);
-                updateFocus(items);
-            } else if (e.key === 'Enter' && focusedIdx >= 0) {
-                e.preventDefault();
-                items[focusedIdx].click();
-                focusedIdx = -1;
-            } else if (e.key === 'Escape') {
-                searchResults.classList.remove('show');
-                focusedIdx = -1;
-            }
+            if (e.key === 'ArrowDown') { e.preventDefault(); focusedIdx = Math.min(focusedIdx + 1, items.length - 1); updateFocus(items); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); focusedIdx = Math.max(focusedIdx - 1, 0); updateFocus(items); }
+            else if (e.key === 'Enter' && focusedIdx >= 0) { e.preventDefault(); items[focusedIdx].click(); focusedIdx = -1; }
+            else if (e.key === 'Escape') { searchResults.classList.remove('show'); focusedIdx = -1; searchInput.blur(); }
         });
-
         function updateFocus(items) {
             items.forEach(function(item, i) {
-                if (i === focusedIdx) {
-                    item.classList.add('keyboard-focused');
-                    item.scrollIntoView({ block: 'nearest' });
-                } else {
-                    item.classList.remove('keyboard-focused');
-                }
+                if (i === focusedIdx) { item.classList.add('keyboard-focused'); item.scrollIntoView({ block: 'nearest' }); }
+                else { item.classList.remove('keyboard-focused'); }
             });
         }
-
         searchResults.addEventListener('mouseover', function() { focusedIdx = -1; });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var card = document.getElementById('analysisCard');
+                if (card && card.style.display !== 'none') { closeAnalysisPublic(); }
+            }
+        });
     })();
     </script>
 </body>

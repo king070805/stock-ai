@@ -1,0 +1,101 @@
+{
+  "name": "股小智 · 数据看板更新",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "每5分钟刷新",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/stats",
+        "options": {}
+      },
+      "name": "获取统计数据",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/stocks?market=a&sort=amount&size=5",
+        "options": {}
+      },
+      "name": "获取热门股票",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stats = $input.first().json;\nconst hotStocks = $input.all()[1].json.stocks || [];\n\nconst today = new Date().toISOString().split('T')[0];\nconst todayData = stats.daily?.[today] || {visits: 0, analyses: 0};\n\nconst dashboard = {\n  updated_at: new Date().toISOString(),\n  total_visits: stats.total_visits || 0,\n  total_analyses: stats.total_analyses || 0,\n  today_visits: todayData.visits,\n  today_analyses: todayData.analyses,\n  hot_stocks: hotStocks.map(s => ({\n    code: s.code,\n    name: s.name,\n    price: s.price,\n    change_pct: s.change_pct\n  })),\n  recent_7days: Object.entries(stats.daily || {})\n    .sort((a,b) => b[0].localeCompare(a[0]))\n    .slice(0,7)\n    .map(([date, data]) => ({\n      date,\n      visits: data.visits,\n      analyses: data.analyses\n    }))\n};\n\nreturn [{json: dashboard}];"
+      },
+      "name": "组装看板数据",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.STOCK_API_URL }}/api/dashboard/update",
+        "method": "POST",
+        "body": {
+          "dashboard": "={{ JSON.stringify($json) }}"
+        },
+        "options": {}
+      },
+      "name": "推送看板更新",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// 生成简单的HTML报告\nconst html = `<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><title>股小智数据看板</title>\n<style>\nbody{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#c9d1d9;padding:24px;max-width:900px;margin:0 auto}\n.metric{display:inline-block;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px 24px;margin:8px;text-align:center}\n.metric-value{font-size:28px;font-weight:800;color:#58a6ff}\n.metric-label{font-size:12px;color:#8b949e;margin-top:4px}\n.stock-item{padding:8px 0;border-bottom:1px solid #21262d}\n.up{color:#3fb950}.down{color:#f85149}\n</style></head><body>\n<h1>📊 股小智实时看板</h1><p style=\"color:#8b949e\">更新时间: ${data.updated_at}</p>\n<div>\n<div class=\"metric\"><div class=\"metric-value\">${data.total_visits}</div><div class=\"metric-label\">累计访问</div></div>\n<div class=\"metric\"><div class=\"metric-value\">${data.total_analyses}</div><div class=\"metric-label\">AI分析次数</div></div>\n<div class=\"metric\"><div class=\"metric-value\">${data.today_visits}</div><div class=\"metric-label\">今日访问</div></div>\n<div class=\"metric\"><div class=\"metric-value\">${data.today_analyses}</div><div class=\"metric-label\">今日分析</div></div>\n</div>\n<h3>🔥 热门股票</h3>\n${data.hot_stocks.map(s => \n  `<div class=\"stock-item\">${s.name}(${s.code}) <span class=\"${parseFloat(s.change_pct)>0?'up':'down'}\">${s.change_pct}%</span> 价格:${s.price}</div>`\n).join('')}\n</body></html>`;\n\nreturn [{json: {html, filename: `dashboard-${data.updated_at.split('T')[0]}.html`}}];"
+      },
+      "name": "生成HTML报告",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "fileName": "=/data/dashboard-reports/{{ $json.filename }}",
+        "fileContent": "={{ $json.html }}",
+        "options": {}
+      },
+      "name": "保存看板报告",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "position": [1050, 500]
+    }
+  ],
+  "connections": {
+    "每5分钟刷新": {
+      "main": [[{"node": "获取统计数据", "type": "main", "index": 0}]]
+    },
+    "获取统计数据": {
+      "main": [[{"node": "获取热门股票", "type": "main", "index": 0}]]
+    },
+    "获取热门股票": {
+      "main": [[{"node": "组装看板数据", "type": "main", "index": 0}]]
+    },
+    "组装看板数据": {
+      "main": [
+        [{"node": "推送看板更新", "type": "main", "index": 0}],
+        [{"node": "生成HTML报告", "type": "main", "index": 0}]
+      ]
+    },
+    "生成HTML报告": {
+      "main": [[{"node": "保存看板报告", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["股小智", "数据看板", "监控"]
+}
