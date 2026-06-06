@@ -144,16 +144,58 @@ function removeFromWatchlist(code) { watchlist = watchlist.filter(function(w) { 
 
 // ========== Util: Sector / Dividend / Heat helpers ==========
 function getSectorTag(code) {
-    var aiCodes = ['002230','300033','688111','300502','300308','002049','603019','000977'];
-    var evCodes = ['002085','600760','688568','300696','688297','002389','600118'];
-    var divCodes = ['601398','601939','601288','600036','600900','601088','600585'];
+    // AI算力产业链（50只）- 覆盖芯片、光模块、服务器、液冷、PCB、CPO等
+    var aiCodes = [
+        // AI芯片
+        '002230','300033','688111','688256','688981','688012','688041','688525',
+        // 光模块/CPO
+        '300502','300308','300394','300548','002281','000938',
+        // AI服务器
+        '000977','603019','601138','002236',
+        // 液冷/散热
+        '002837','300499','301018','603912',
+        // PCB/覆铜板
+        '002463','600183','603228','300739',
+        // 存储芯片
+        '603986','688110','300223','000021',
+        // 电源/变压器
+        '300274','002335','600885',
+        // CPO/光引擎
+        '601231','603306','002384','300620',
+        // 算力租赁/IDC
+        '600845','600728','300017',
+        // 半导体设备
+        '002371','688082','688072',
+    ];
+    // 低空经济（25只）
+    var evCodes = [
+        '002085','600760','688568','300696','688297','002389','600118',
+        '000768','600316','002013','600038','300900','002151',
+        '300114','002025','600372','600391','300159','002179',
+        '600967','300424','002933','300411','603261','688070',
+    ];
+    // 高股息（40只）
+    var divCodes = [
+        '601398','601939','601288','600036','600900','601088','600585',
+        '601318','600028','601857','600019','601988','601328','600016',
+        '601998','601818','601186','601668','601390','601728','600048',
+        '600104','600887','600690','600741','600660','600276','600309',
+        '600406','600089','600115','601111','600029','600377','600350',
+        '600018','600017','600508','601699','601225',
+    ];
     if (aiCodes.indexOf(code) >= 0) return {cls:'ai', label:'AI算力'};
     if (evCodes.indexOf(code) >= 0) return {cls:'ev', label:'低空经济'};
     if (divCodes.indexOf(code) >= 0) return {cls:'dividend', label:'高股息'};
     return {cls:'other', label:'其他'};
 }
 function getDividendRate(code) {
-    var rates = {'601398':'5.2','601939':'5.0','601288':'4.8','600036':'3.5','600900':'3.8','601088':'6.1','600585':'4.2'};
+    var rates = {
+        '601398':'5.2','601939':'5.0','601288':'4.8','600036':'3.5',
+        '600900':'3.8','601088':'6.1','600585':'4.2','601857':'5.5',
+        '600028':'5.3','600019':'4.5','601988':'4.9','601328':'5.1',
+        '600016':'4.3','601998':'4.7','601818':'4.1','601186':'3.9',
+        '601668':'3.2','601390':'3.0','601728':'2.8','600048':'3.6',
+    };
     return rates[code] || null;
 }
 function getHeatLevel(code) {
@@ -177,6 +219,55 @@ function formatRelativeTime(dateStr) {
 }
 function formatUpdateTime() { var now = new Date(); return now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0'); }
 
+// ========== Market Overview ==========
+function updateMarketOverview(stocks) {
+    if (!stocks || !stocks.length) return;
+    var upCount = 0, downCount = 0, totalChange = 0;
+    stocks.forEach(function(s) {
+        var chg = parseFloat(s.change_pct) || 0;
+        if (chg > 0) upCount++;
+        else if (chg < 0) downCount++;
+        totalChange += chg;
+    });
+    var total = upCount + downCount;
+    var avgChange = total > 0 ? (totalChange / stocks.length).toFixed(2) : 0;
+    var upPct = total > 0 ? (upCount / total * 100).toFixed(1) : 50;
+    var downPct = total > 0 ? (downCount / total * 100).toFixed(1) : 50;
+
+    var shIndex = document.getElementById('shIndex');
+    var shChange = document.getElementById('shChange');
+    var barUp = document.getElementById('barUp');
+    var barDown = document.getElementById('barDown');
+    var statUp = document.getElementById('statUp');
+    var statDown = document.getElementById('statDown');
+    var sentiment = document.getElementById('sentiment');
+    var sentimentLabel = document.getElementById('sentimentLabel');
+    var updateTime = document.getElementById('updateTime');
+
+    if (shIndex) shIndex.textContent = avgChange > 0 ? '+' + avgChange + '%' : avgChange + '%';
+    if (shChange) {
+        shChange.textContent = (avgChange >= 0 ? '+' : '') + avgChange + '%';
+        shChange.className = 'overview-change ' + (avgChange >= 0 ? 'up' : 'down');
+    }
+    if (barUp) barUp.style.width = upPct + '%';
+    if (barDown) barDown.style.width = downPct + '%';
+    if (statUp) statUp.textContent = upCount + ' 涨';
+    if (statDown) statDown.textContent = downCount + ' 跌';
+
+    if (sentiment && sentimentLabel) {
+        var sentimentText = '', sentimentEmoji = '';
+        if (avgChange > 1) { sentimentEmoji = '🚀'; sentimentText = '极度乐观'; }
+        else if (avgChange > 0.3) { sentimentEmoji = '😊'; sentimentText = '乐观'; }
+        else if (avgChange > -0.3) { sentimentEmoji = '😐'; sentimentText = '中性'; }
+        else if (avgChange > -1) { sentimentEmoji = '😰'; sentimentText = '谨慎'; }
+        else { sentimentEmoji = '😱'; sentimentText = '恐慌'; }
+        sentiment.textContent = sentimentEmoji;
+        sentimentLabel.textContent = sentimentText;
+    }
+
+    if (updateTime) updateTime.textContent = '更新于 ' + formatUpdateTime();
+}
+
 // ========== Stock List ==========
 function loadStocks() {
     var tbody = document.getElementById('stockTableBody'); var st = document.getElementById('marketStatus');
@@ -196,7 +287,8 @@ function loadStocks() {
                 tbody.innerHTML = '<tr><td colspan="11" class="loading-row">' + escHtml(msg) + '</td></tr>';
                 st.innerHTML = '<span class="status-dot closed"></span><span class="status-text">休市中</span>'; return;
             }
-            st.innerHTML = '<span class="status-dot open"></span><span class="status-text">实时数据 <span class="update-time">更新于 ' + formatUpdateTime() + '</span></span>';
+            st.innerHTML = '<span class="status-dot open"></span><span class="status-text">实时数据</span>';
+            updateMarketOverview(data.stocks);
             var rows = '';
             data.stocks.forEach(function(s, i) {
                 if (!matchesSector(s.code)) return;

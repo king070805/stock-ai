@@ -24,15 +24,45 @@
                 <div class="search-results" id="searchResults" role="listbox" aria-label="搜索结果"></div>
             </div>
             <div class="top-actions">
+                <a href="/subscribe" class="btn-subscribe" style="text-decoration: none; margin-right: 10px;">
+                    <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        💎 开通会员
+                    </button>
+                </a>
                 <button class="btn-watchlist" id="btnWatchlist" aria-label="自选股列表">⭐<span class="watchlist-count" id="watchlistCount">0</span></button>
             </div>
         </header>
 
+        <!-- 市场概览 -->
+        <div class="market-overview" id="marketOverview">
+            <div class="overview-card">
+                <div class="overview-label">上证指数</div>
+                <div class="overview-value" id="shIndex">--</div>
+                <div class="overview-change" id="shChange">--</div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">涨跌分布</div>
+                <div class="overview-bar">
+                    <div class="bar-up" id="barUp" style="width:50%"></div>
+                    <div class="bar-down" id="barDown" style="width:50%"></div>
+                </div>
+                <div class="overview-stats">
+                    <span class="stat-up" id="statUp">--</span>
+                    <span class="stat-down" id="statDown">--</span>
+                </div>
+            </div>
+            <div class="overview-card">
+                <div class="overview-label">市场情绪</div>
+                <div class="sentiment-indicator" id="sentiment">--</div>
+                <div class="sentiment-label" id="sentimentLabel">计算中...</div>
+            </div>
+        </div>
+
         <div class="sector-filter-bar" id="sectorFilterBar">
             <button class="sector-filter-btn active" data-sector="all">全部</button>
-            <button class="sector-filter-btn" data-sector="ai">🤖 AI算力</button>
-            <button class="sector-filter-btn" data-sector="ev">🚁 低空经济</button>
-            <button class="sector-filter-btn" data-sector="dividend">💰 高股息</button>
+            <button class="sector-filter-btn" data-sector="ai">AI算力</button>
+            <button class="sector-filter-btn" data-sector="ev">低空经济</button>
+            <button class="sector-filter-btn" data-sector="dividend">高股息</button>
         </div>
 
         <div class="watchlist-drawer-overlay" id="watchlistOverlay"></div>
@@ -48,11 +78,14 @@
 
         <div class="main-layout">
             <main class="content">
-                <div class="tabs" id="tabBar">
-                    <a href="#" class="tab" data-market="a" data-sort="change" role="tab">涨跌幅</a>
-                    <a href="#" class="tab active" data-market="a" data-sort="amount" role="tab" aria-selected="true">成交额</a>
-                    <a href="#" class="tab" data-market="a" data-sort="volume" role="tab">成交量</a>
-                    <a href="#" class="tab" data-market="us" data-sort="change" role="tab">美股</a>
+                <div class="content-header">
+                    <div class="tabs" id="tabBar">
+                        <a href="#" class="tab" data-market="a" data-sort="change" role="tab">涨跌幅</a>
+                        <a href="#" class="tab active" data-market="a" data-sort="amount" role="tab" aria-selected="true">成交额</a>
+                        <a href="#" class="tab" data-market="a" data-sort="volume" role="tab">成交量</a>
+                        <a href="#" class="tab" data-market="us" data-sort="change" role="tab">美股</a>
+                    </div>
+                    <div class="update-time" id="updateTime">更新于 --:--</div>
                 </div>
 
                 <div class="us-data-banner" id="usDataBanner">🌐 美股数据来自 Yahoo Finance，可能存在延迟</div>

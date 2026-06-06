@@ -8,6 +8,46 @@ from services.stock_service import get_stock_list, search_stock, get_stock_detai
 from services.ai_service import analyze_stock, analyze_portfolio, daily_briefing
 from guxiaozhi.orchestrator import run_analysis, get_user_memory
 
+# ==================== 支付系统集成开始 ====================
+import uuid
+import hashlib
+import qrcode
+import io
+import base64
+
+# 支付配置
+PAYMENT_CONFIG = {
+    'app_name': '股小智会员',
+    'wx_pay_url': 'wxp://f2f0_xxxxxxxxxxxx',  # 请替换为您的微信收款码URL
+    'alipay_url': 'https://qr.alipay.com/xxxxxxxx',  # 请替换为您的支付宝收款码URL
+    'callback_key': 'your_secret_key_here',  # 请修改为您的密钥
+    'order_timeout': 300,  # 订单超时时间（秒）
+}
+
+# 会员套餐配置
+MEMBER_PLANS = {
+    'monthly': {
+        'name': '月度会员',
+        'amount': '29.90',
+        'duration_days': 30,
+    },
+    'quarterly': {
+        'name': '季度会员',
+        'amount': '79.90',
+        'duration_days': 90,
+    },
+    'yearly': {
+        'name': '年度会员',
+        'amount': '299.00',
+        'duration_days': 365,
+    }
+}
+
+# 内存存储订单（生产环境建议使用数据库）
+orders = {}
+user_agreements = {}
+# ==================== 支付系统集成结束 ====================
+
 app = Flask(__name__)
 
 # 简易访问统计（内存存储，重启清零）
@@ -377,6 +417,209 @@ def api_stock_detail(code):
         return jsonify({"error": "未找到"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ==================== 支付系统路由开始 ====================
+
+@app.route('/subscribe')
+def subscribe_page():
+    """会员订阅页面"""
+    return render_template('subscribe.html')
+
+
+@app.route('/api/create_order', methods=['POST'])
+def create_order():
+    """创建支付订单"""
+    data = request.get_json()
+    
+    plan_id = data.get('plan_id')
+    pay_type = data.get('pay_type', 'wxpay')
+    user_id = data.get('user_id', 'anonymous')
+    
+    if plan_id not in MEMBER_PLANS:
+        return jsonify({'success': False, 'error': '无效的套餐'}), 400
+    
+    if pay_type not in ['wxpay', 'alipay']:
+        return jsonify({'success': False, 'error': '无效的支付方式'}), 400
+    
+    plan = MEMBER_PLANS[plan_id]
+    
+    # 生成唯一订单号
+    order_no = f"ORDER{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:6]}"
+    
+    # 设置过期时间
+    expire_time = datetime.now() + timedelta(seconds=PAYMENT_CONFIG['order_timeout'])
+    
+    # 创建订单
+    orders[order_no] = {
+        'order_no': order_no,
+        'user_id': user_id,
+        'plan_id': plan_id,
+        'plan_name': plan['name'],
+        'amount': plan['amount'],
+        'pay_type': pay_type,
+        'status': 'PENDING',
+        'create_time': datetime.now(),
+        'expire_time': expire_time
+    }
+    
+    # 生成收款二维码
+    qr_data = f"{PAYMENT_CONFIG['wx_pay_url']}?amount={plan['amount']}&remark={order_no}"
+    
+    # 生成二维码图片
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # 转换为base64
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    
+    return jsonify({
+        'success': True,
+        'order_no': order_no,
+        'amount': plan['amount'],
+        'qr_code': f'data:image/png;base64,{img_str}',
+        'expire_time': expire_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'pay_type': pay_type,
+    })
+
+
+@app.route('/api/check_order/<order_no>')
+def check_order(order_no):
+    """查询订单状态"""
+    order = orders.get(order_no)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    # 检查是否超时
+    if order['status'] == 'PENDING' and datetime.now() > order['expire_time']:
+        order['status'] = 'EXPIRED'
+    
+    return jsonify({
+        'success': True,
+        'order': {
+            'order_no': order['order_no'],
+            'plan_name': order['plan_name'],
+            'amount': order['amount'],
+            'pay_type': order['pay_type'],
+            'status': order['status'],
+            'create_time': order['create_time'].strftime('%Y-%m-%d %H:%M:%S'),
+            'pay_time': order.get('pay_time', '').strftime('%Y-%m-%d %H:%M:%S') if order.get('pay_time') else None,
+            'expire_time': order['expire_time'].strftime('%Y-%m-%d %H:%M:%S'),
+        }
+    })
+
+
+@app.route('/api/notify', methods=['POST'])
+def payment_notify():
+    """监控端回调接口"""
+    data = request.get_json()
+    
+    # 验证签名
+    sign = data.pop('sign', None)
+    timestamp = data.get('timestamp', '')
+    
+    expected_sign = hashlib.md5(
+        f"{data['order_no']}{data['amount']}{timestamp}{PAYMENT_CONFIG['callback_key']}".encode()
+    ).hexdigest()
+    
+    if sign != expected_sign:
+        return jsonify({'success': False, 'error': '签名验证失败'}), 403
+    
+    order_no = data.get('order_no')
+    amount = data.get('amount')
+    pay_type = data.get('pay_type')
+    
+    order = orders.get(order_no)
+    
+    if not order:
+        return jsonify({'success': False, 'error': '订单不存在'}), 404
+    
+    if order['status'] != 'PENDING':
+        return jsonify({'success': False, 'error': '订单状态异常'}), 400
+    
+    # 校验金额
+    if amount != order['amount']:
+        return jsonify({'success': False, 'error': '金额不匹配'}), 400
+    
+    # 更新订单状态
+    order['status'] = 'PAID'
+    order['pay_time'] = datetime.now()
+    
+    print(f"[支付成功] 订单: {order_no}, 金额: {amount}, 用户: {order['user_id']}")
+    
+    return jsonify({'success': True, 'message': '支付成功'})
+
+
+@app.route('/admin/payments')
+def admin_payments():
+    """支付管理后台"""
+    order_list = sorted(orders.values(), key=lambda x: x['create_time'], reverse=True)
+    
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>支付订单管理 - 股小智</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+            th { background: #667eea; color: white; }
+            .status-PENDING { color: #ff9800; }
+            .status-PAID { color: #4caf50; }
+            .status-EXPIRED { color: #f44336; }
+            .back-link { display: inline-block; margin-bottom: 20px; color: #667eea; text-decoration: none; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <a href="/" class="back-link">← 返回股小智</a>
+            <h1>支付订单管理</h1>
+            <table>
+                <tr>
+                    <th>订单号</th>
+                    <th>用户</th>
+                    <th>套餐</th>
+                    <th>金额</th>
+                    <th>支付方式</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>支付时间</th>
+                </tr>
+    '''
+    
+    for order in order_list:
+        html += f'''
+                <tr>
+                    <td>{order['order_no']}</td>
+                    <td>{order['user_id']}</td>
+                    <td>{order['plan_name']}</td>
+                    <td>¥{order['amount']}</td>
+                    <td>{order['pay_type']}</td>
+                    <td class="status-{order['status']}">{order['status']}</td>
+                    <td>{order['create_time'].strftime('%Y-%m-%d %H:%M:%S')}</td>
+                    <td>{order.get('pay_time', '').strftime('%Y-%m-%d %H:%M:%S') if order.get('pay_time') else '-'}</td>
+                </tr>
+        '''
+    
+    html += '''
+            </table>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    return html
+
+# ==================== 支付系统路由结束 ====================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
