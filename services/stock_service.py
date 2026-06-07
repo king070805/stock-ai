@@ -24,7 +24,7 @@ MARKETS = {
 # 字段映射 push2 API
 FIELDS = "f2,f3,f4,f5,f6,f8,f9,f10,f12,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f100,f124"
 
-def get_stock_list(market="a", sort_by="change", page=1, size=20):
+def get_stock_list(market="a", sort_by="change", page=1, size=60):
     """获取股票列表/排行（多级回退）"""
     
     # 美股使用 Yahoo Finance
@@ -411,9 +411,26 @@ def _get_stock_list_tencent(sort_by="change", size=20):
         if sort_by == "change":
             stocks.sort(key=lambda s: float(s.get("change_pct") or 0), reverse=True)
         elif sort_by == "amount":
-            stocks.sort(key=lambda s: float(s.get("change_pct") or 0), reverse=True)
+            # 腾讯API返回的amount字段需要解析（可能带单位）
+            def parse_amount(s):
+                amt = s.get("amount", "0")
+                if isinstance(amt, str):
+                    amt = amt.replace("万", "").replace("亿", "")
+                try:
+                    return float(amt) if amt else 0
+                except:
+                    return 0
+            stocks.sort(key=parse_amount, reverse=True)
         elif sort_by == "volume":
-            stocks.sort(key=lambda s: float(s.get("change_pct") or 0), reverse=True)
+            def parse_volume(s):
+                vol = s.get("volume", "0")
+                if isinstance(vol, str):
+                    vol = vol.replace("万", "").replace("亿", "")
+                try:
+                    return float(vol) if vol else 0
+                except:
+                    return 0
+            stocks.sort(key=parse_volume, reverse=True)
         
         return stocks[:size]
     except Exception as e:

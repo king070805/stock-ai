@@ -61,7 +61,19 @@
         .plan-name {
             font-size: 1.5rem;
             color: #333;
+            margin-bottom: 5px;
+        }
+        .plan-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
             margin-bottom: 10px;
+        }
+        .plan-card.featured .plan-tag {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
         }
         .plan-price {
             font-size: 3rem;
@@ -171,40 +183,64 @@
 <body>
     <div class="subscribe-container">
         <a href="/" class="back-link">← 返回股小智</a>
-        <h1 class="subscribe-title">开通股小智会员</h1>
-        <p class="subscribe-subtitle">解锁更多AI分析功能，提升投资决策效率</p>
+        <h1 class="subscribe-title">🧃 一块九，开启AI股票之旅</h1>
+        <p class="subscribe-subtitle">比一瓶水还便宜，比一杯奶茶更超值</p>
         
         <div class="plans-grid">
-            <div class="plan-card" data-plan="monthly" onclick="selectPlan(this)">
-                <div class="plan-name">月度会员</div>
-                <div class="plan-price">¥29.90<span>/月</span></div>
+            <div class="plan-card" data-plan="trial" onclick="selectPlan(this)">
+                <div class="plan-name">🧃 尝鲜卡</div>
+                <div class="plan-tag">一瓶水的价格</div>
+                <div class="plan-price">¥1.9<span>/3天</span></div>
                 <ul class="plan-features">
-                    <li>✓ AI深度分析无限次</li>
-                    <li>✓ 实时异动预警</li>
-                    <li>✓ 高级选股策略</li>
-                    <li>✓ 优先客服支持</li>
+                    <li>✓ AI分析5次/天</li>
+                    <li>✓ 异动预警推送</li>
+                    <li>✓ 基础选股策略</li>
                 </ul>
             </div>
-            <div class="plan-card featured" data-plan="quarterly" onclick="selectPlan(this)">
-                <div class="plan-name">季度会员</div>
-                <div class="plan-price">¥79.90<span>/季</span></div>
+            <div class="plan-card" data-plan="weekly" onclick="selectPlan(this)">
+                <div class="plan-name">🧋 周卡</div>
+                <div class="plan-tag">半杯奶茶</div>
+                <div class="plan-price">¥5.9<span>/7天</span></div>
                 <ul class="plan-features">
-                    <li>✓ AI深度分析无限次</li>
-                    <li>✓ 实时异动预警</li>
+                    <li>✓ AI分析10次/天</li>
+                    <li>✓ 异动预警推送</li>
+                    <li>✓ 基础选股策略</li>
+                    <li>✓ 赛道热度追踪</li>
+                </ul>
+            </div>
+            <div class="plan-card featured" data-plan="monthly" onclick="selectPlan(this)">
+                <div class="plan-name">☕ 月卡</div>
+                <div class="plan-tag">一杯奶茶 · 热卖</div>
+                <div class="plan-price">¥9.9<span>/月</span></div>
+                <ul class="plan-features">
+                    <li>✓ AI分析15次/天</li>
+                    <li>✓ 异动预警推送</li>
                     <li>✓ 高级选股策略</li>
+                    <li>✓ 赛道热度追踪</li>
+                </ul>
+            </div>
+            <div class="plan-card" data-plan="quarterly" onclick="selectPlan(this)">
+                <div class="plan-name">⭐ 季卡</div>
+                <div class="plan-tag">超值推荐</div>
+                <div class="plan-price">¥25.9<span>/季</span></div>
+                <ul class="plan-features">
+                    <li>✓ AI分析20次/天</li>
+                    <li>✓ 异动预警推送</li>
+                    <li>✓ 高级选股策略</li>
+                    <li>✓ AI复盘日报</li>
                     <li>✓ 优先客服支持</li>
-                    <li>✓ 节省 ¥9.80</li>
                 </ul>
             </div>
             <div class="plan-card" data-plan="yearly" onclick="selectPlan(this)">
-                <div class="plan-name">年度会员</div>
-                <div class="plan-price">¥299.00<span>/年</span></div>
+                <div class="plan-name">👑 年卡VIP</div>
+                <div class="plan-tag">每天两毛四 · 最划算</div>
+                <div class="plan-price">¥88<span>/年</span></div>
                 <ul class="plan-features">
-                    <li>✓ AI深度分析无限次</li>
-                    <li>✓ 实时异动预警</li>
-                    <li>✓ 高级选股策略</li>
-                    <li>✓ 优先客服支持</li>
-                    <li>✓ 节省 ¥59.80</li>
+                    <li>✓ AI分析30次/天</li>
+                    <li>✓ 全部季卡权益</li>
+                    <li>✓ 专属AI模型</li>
+                    <li>✓ 深度研报解读</li>
+                    <li>✓ 年度投资报告</li>
                 </ul>
             </div>
         </div>

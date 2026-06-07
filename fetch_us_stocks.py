@@ -456,13 +456,13 @@ def main():
         except Exception as e:
             print(f"    网页抓取失败: {e}")
 
-    if stocks is None and args.source in ("auto", "yfinance"):
+    if not stocks and args.source in ("auto", "yfinance"):
         try:
             stocks = fetch_from_yfinance(size=args.size)
         except Exception as e:
             print(f"    yfinance 获取失败: {e}")
 
-    if stocks is None:
+    if not stocks:
         stocks = generate_mock_data(size=args.size)
 
     # 排序

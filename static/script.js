@@ -268,6 +268,37 @@ function updateMarketOverview(stocks) {
     if (updateTime) updateTime.textContent = '更新于 ' + formatUpdateTime();
 }
 
+// ========== Sector Stock Pools ==========
+function getSectorStockCodes(sector) {
+    if (sector === 'ai') return [
+        '002230','300033','688111','688256','688981','688012','688041','688525',
+        '300502','300308','300394','300548','002281','000938',
+        '000977','603019','601138','002236',
+        '002837','300499','301018','603912',
+        '002463','600183','603228','300739',
+        '603986','688110','300223','000021',
+        '300274','002335','600885',
+        '601231','603306','002384','300620',
+        '600845','600728','300017',
+        '002371','688082','688072',
+    ];
+    if (sector === 'ev') return [
+        '002085','600760','688568','300696','688297','002389','600118',
+        '000768','600316','002013','600038','300900','002151',
+        '300114','002025','600372','600391','300159','002179',
+        '600967','300424','002933','300411','603261','688070',
+    ];
+    if (sector === 'dividend') return [
+        '601398','601939','601288','600036','600900','601088','600585',
+        '601318','600028','601857','600019','601988','601328','600016',
+        '601998','601818','601186','601668','601390','601728','600048',
+        '600104','600887','600690','600741','600660','600276','600309',
+        '600406','600089','600115','601111','600029','600377','600350',
+        '600018','600017','600508','601699','601225',
+    ];
+    return [];
+}
+
 // ========== Stock List ==========
 function loadStocks() {
     var tbody = document.getElementById('stockTableBody'); var st = document.getElementById('marketStatus');
@@ -275,6 +306,12 @@ function loadStocks() {
     tbody.innerHTML = '<tr><td colspan="11" class="loading-row">加载中...</td></tr>';
     st.innerHTML = '<span class="status-dot"></span><span class="status-text">加载中...</span>';
     if (banner) banner.style.display = 'none';
+
+    // 当选择特定分区且为A股时，直接获取该分区所有股票
+    if (currentMarket === 'a' && currentSector !== 'all') {
+        loadSectorStocks(currentSector);
+        return;
+    }
 
     fetch('/api/stocks?market=' + currentMarket + '&sort=' + currentSort)
         .then(function(r) { return r.json(); })
@@ -289,39 +326,71 @@ function loadStocks() {
             }
             st.innerHTML = '<span class="status-dot open"></span><span class="status-text">实时数据</span>';
             updateMarketOverview(data.stocks);
-            var rows = '';
-            data.stocks.forEach(function(s, i) {
-                if (!matchesSector(s.code)) return;
-                var chg = parseFloat(s.change_pct) || 0; var cls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
-                var sign = chg > 0 ? '+' : ''; var starred = isStarred(s.code);
-                var absChg = Math.abs(chg);
-                var trendBar = absChg > 0 ? '<span class="mini-trend-bar" style="width:' + Math.min(60, absChg * 6) + 'px;background:' + (chg > 0 ? 'var(--up)' : 'var(--down)') + '"></span>' : '';
-                var priceArrow = chg > 0 ? '<span class="price-arrow up">\u2191</span>' : chg < 0 ? '<span class="price-arrow down">\u2193</span>' : '';
-                var tag = getSectorTag(s.code);
-                var divRate = getDividendRate(s.code);
-                var divHtml = divRate ? (parseFloat(divRate) > 3 ? '<span class="dividend-high">' + divRate + '%</span>' : divRate + '%') : '-';
-                var heat = getHeatLevel(s.code);
-
-                rows += '<tr class="stock-row" data-code="' + escHtml(s.code) + '">' +
-                    '<td class="col-wl"><button class="btn-star ' + (starred ? 'starred' : '') + '" data-code="' + escHtml(s.code) + '" data-name="' + escHtml(s.name) + '">' + (starred ? '\u2605' : '\u2606') + '</button></td>' +
-                    '<td class="col-rank">' + (i + 1) + '</td>' +
-                    '<td class="col-name"><span class="stock-name" data-tooltip="数据来源：东方财富">' + escHtml(s.name) + '</span><span class="stock-code">' + escHtml(s.code) + '</span></td>' +
-                    '<td class="col-tag"><span class="sector-tag ' + tag.cls + '">' + tag.label + '</span></td>' +
-                    '<td class="col-price" data-tooltip="数据来源：东方财富">' + escHtml(s.price || '-') + priceArrow + '</td>' +
-                    '<td class="col-change ' + cls + '">' + sign + escHtml(s.change_pct || '-') + '%' + trendBar + '</td>' +
-                    '<td class="col-change hide-mobile">' + escHtml(s.amount || '-') + '</td>' +
-                    '<td class="col-dividend hide-mobile">' + divHtml + '</td>' +
-                    '<td class="col-change hide-mobile">' + escHtml(s.pe || '-') + '</td>' +
-                    '<td class="col-heat"><span class="heat-icon ' + heat.cls + '">' + heat.icon + '</span></td>' +
-                    '<td class="col-action"><button class="btn-analyze" data-code="' + escHtml(s.code) + '">AI分析</button></td></tr>';
-            });
-            if (!rows) rows = '<tr><td colspan="11" class="loading-row">该赛道暂无匹配股票</td></tr>';
-            tbody.innerHTML = rows;
-            document.querySelectorAll('.btn-star').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); toggleWatchlistStar(b.getAttribute('data-code'), b.getAttribute('data-name'), b); }); });
-            document.querySelectorAll('.btn-analyze').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); analyzeStock(b.getAttribute('data-code'), b); }); });
-            document.querySelectorAll('.stock-row').forEach(function(r) { r.addEventListener('click', function() { analyzeStock(r.getAttribute('data-code'), r); }); });
+            renderStockRows(data.stocks, false);
         })
         .catch(function() { tbody.innerHTML = '<tr><td colspan="11" class="loading-row">加载失败，<a href="#" id="retryLink" style="color:var(--accent)">重试</a></td></tr>'; st.innerHTML = '<span class="status-dot error"></span><span class="status-text">连接失败</span>'; var rl = document.getElementById('retryLink'); if (rl) rl.addEventListener('click', function(e) { e.preventDefault(); loadStocks(); }); if (currentMarket === 'us' && banner) banner.style.display = 'block'; });
+}
+
+function loadSectorStocks(sector) {
+    var tbody = document.getElementById('stockTableBody'); var st = document.getElementById('marketStatus');
+    
+    // 通过后端API获取赛道数据（避免跨域问题）
+    fetch('/api/sector-stocks?sector=' + sector + '&sort=' + currentSort)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) throw new Error(data.error);
+            if (!data.stocks || data.stocks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="loading-row">该赛道暂无匹配股票</td></tr>';
+                st.innerHTML = '<span class="status-dot closed"></span><span class="status-text">暂无数据</span>';
+                return;
+            }
+            st.innerHTML = '<span class="status-dot open"></span><span class="status-text">实时数据</span>';
+            updateMarketOverview(data.stocks);
+            renderStockRows(data.stocks, true);
+        })
+        .catch(function() {
+            tbody.innerHTML = '<tr><td colspan="11" class="loading-row">加载失败，<a href="#" id="retryLink" style="color:var(--accent)">重试</a></td></tr>';
+            st.innerHTML = '<span class="status-dot error"></span><span class="status-text">连接失败</span>';
+            var rl = document.getElementById('retryLink');
+            if (rl) rl.addEventListener('click', function(e) { e.preventDefault(); loadSectorStocks(sector); });
+        });
+}
+
+function renderStockRows(stocks, isSectorView) {
+    var tbody = document.getElementById('stockTableBody');
+    var rows = '';
+    var displayCount = 0;
+    stocks.forEach(function(s, i) {
+        if (!isSectorView && !matchesSector(s.code)) return;
+        displayCount++;
+        var chg = parseFloat(s.change_pct) || 0; var cls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
+        var sign = chg > 0 ? '+' : ''; var starred = isStarred(s.code);
+        var absChg = Math.abs(chg);
+        var trendBar = absChg > 0 ? '<span class="mini-trend-bar" style="width:' + Math.min(60, absChg * 6) + 'px;background:' + (chg > 0 ? 'var(--up)' : 'var(--down)') + '"></span>' : '';
+        var priceArrow = chg > 0 ? '<span class="price-arrow up">\u2191</span>' : chg < 0 ? '<span class="price-arrow down">\u2193</span>' : '';
+        var tag = getSectorTag(s.code);
+        var divRate = getDividendRate(s.code);
+        var divHtml = divRate ? (parseFloat(divRate) > 3 ? '<span class="dividend-high">' + divRate + '%</span>' : divRate + '%') : '-';
+        var heat = getHeatLevel(s.code);
+
+        rows += '<tr class="stock-row" data-code="' + escHtml(s.code) + '">' +
+            '<td class="col-wl"><button class="btn-star ' + (starred ? 'starred' : '') + '" data-code="' + escHtml(s.code) + '" data-name="' + escHtml(s.name) + '">' + (starred ? '\u2605' : '\u2606') + '</button></td>' +
+            '<td class="col-rank">' + displayCount + '</td>' +
+            '<td class="col-name"><span class="stock-name" data-tooltip="数据来源：东方财富">' + escHtml(s.name) + '</span><span class="stock-code">' + escHtml(s.code) + '</span></td>' +
+            '<td class="col-tag"><span class="sector-tag ' + tag.cls + '">' + tag.label + '</span></td>' +
+            '<td class="col-price" data-tooltip="数据来源：东方财富">' + escHtml(s.price || '-') + priceArrow + '</td>' +
+            '<td class="col-change ' + cls + '">' + sign + escHtml(s.change_pct || '-') + '%' + trendBar + '</td>' +
+            '<td class="col-change hide-mobile">' + escHtml(s.amount || '-') + '</td>' +
+            '<td class="col-dividend hide-mobile">' + divHtml + '</td>' +
+            '<td class="col-change hide-mobile">' + escHtml(s.pe || '-') + '</td>' +
+            '<td class="col-heat"><span class="heat-icon ' + heat.cls + '">' + heat.icon + '</span></td>' +
+            '<td class="col-action"><button class="btn-analyze" data-code="' + escHtml(s.code) + '">AI分析</button></td></tr>';
+    });
+    if (!rows) rows = '<tr><td colspan="11" class="loading-row">该赛道暂无匹配股票</td></tr>';
+    tbody.innerHTML = rows;
+    document.querySelectorAll('.btn-star').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); toggleWatchlistStar(b.getAttribute('data-code'), b.getAttribute('data-name'), b); }); });
+    document.querySelectorAll('.btn-analyze').forEach(function(b) { b.addEventListener('click', function(e) { e.stopPropagation(); analyzeStock(b.getAttribute('data-code'), b); }); });
+    document.querySelectorAll('.stock-row').forEach(function(r) { r.addEventListener('click', function() { analyzeStock(r.getAttribute('data-code'), r); }); });
 }
 
 // ========== Briefing ==========
@@ -363,8 +432,31 @@ function analyzeStock(code, btnOrRow) {
     var ctx = chartCanvas.getContext('2d'); ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
 
     fetch('/api/analyze?code=' + code + '&user_id=' + userId)
-        .then(function(r) { return r.json(); })
+        .then(function(r) { 
+            if (r.status === 403) {
+                // 次数用完
+                return r.json().then(function(data) {
+                    if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+                    if (triggerRow) triggerRow.classList.remove('loading-row-state');
+                    card.classList.remove('entering');
+                    card.style.display = 'block';
+                    nameEl.textContent = '次数已用完';
+                    bodyEl.innerHTML = 
+                        '<div style="text-align:center;padding:20px;">' +
+                        '<div style="font-size:48px;margin-bottom:10px;">😅</div>' +
+                        '<div style="color:var(--down);font-weight:600;margin-bottom:8px;font-size:16px;">' + escHtml(data.error) + '</div>' +
+                        '<div style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">' + escHtml(data.message) + '</div>' +
+                        '<a href="/subscribe" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">' +
+                        '💎 开通会员，畅享AI分析' +
+                        '</a>' +
+                        '</div>';
+                    return null;
+                });
+            }
+            return r.json();
+        })
         .then(function(data) {
+            if (!data) return; // 次数用完的情况已处理
             if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
             if (triggerRow) triggerRow.classList.remove('loading-row-state');
             card.classList.remove('entering');
