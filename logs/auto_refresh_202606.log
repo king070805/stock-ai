@@ -1,0 +1,13 @@
+﻿[2026-06-08 13:02:35.043] [INFO] ================================================================
+[2026-06-08 13:02:35.049] [INFO] A-Stock Auto Refresh Script v2.0 Started
+[2026-06-08 13:02:35.051] [INFO] API URL: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-08 13:02:35.051] [INFO] Refresh Interval: 10 minutes (10min 脳 60s = 600s)
+[2026-06-08 13:02:35.056] [INFO] Trading Hours: Mon-Fri 09:30-11:30, 13:00-15:00
+[2026-06-08 13:02:35.057] [INFO] Log File: C:\Users\lenovo\Documents\daliy\logs\auto_refresh_202606.log
+[2026-06-08 13:02:35.059] [INFO] ================================================================
+[2026-06-08 13:02:37.207] [WARN] API health check FAILED. Waiting 30s before first refresh...
+[2026-06-08 13:03:07.211] [INFO] --- Cycle #1 ---
+[2026-06-08 13:03:07.801] [INFO] Refresh OK | Status: 200 | Stocks: 60 | Size: 22841bytes
+[2026-06-08 13:03:07.826] [INFO] Top Gainer: 北京君正(300223) 8.47% @ 151.16
+[2026-06-08 13:03:07.826] [INFO] Top Loser : 环旭电子(601231) -7.76% @ 39.35
+[2026-06-08 13:03:07.829] [INFO] Next refresh in 10 minutes...

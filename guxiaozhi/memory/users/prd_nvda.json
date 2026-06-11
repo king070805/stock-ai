@@ -1,0 +1,20 @@
+{
+  "user_id": "prd_nvda",
+  "created": "2026-06-11",
+  "queries": [
+    {
+      "date": "2026-06-11 02:19",
+      "symbol": "NVDA",
+      "name": "NVIDIA Corp.",
+      "verdict": "信息关注",
+      "summary": "NVIDIA Corp.（NVDA）属于美股公开行情整理：最新价875.28，当前涨跌幅为+1.76%，价格表现偏强，但仍需结合成交量和公司公告一起看。\n基础指"
+    }
+  ],
+  "watchlist": [
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Corp.",
+      "last_checked": "2026-06-11 02:19"
+    }
+  ]
+}

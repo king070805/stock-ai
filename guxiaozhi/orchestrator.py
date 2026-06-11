@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.stock_service import get_stock_detail, get_stock_history, get_stock_list
 from services.us_stock_service import get_quote
-from services.ai_service import DEEPSEEK_API_KEY, DEEPSEEK_API_URL
+from services.ai_service import DEEPSEEK_API_KEY, DEEPSEEK_API_URL, COMPLIANCE_SYSTEM_PROMPT, enforce_ai_compliance
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STOCKS_DIR = os.path.join(BASE_DIR, "data", "stocks")
@@ -95,11 +95,14 @@ def _collect_us_stock(symbol):
 # ============================================================
 
 ANALYST_SYSTEM_PROMPT = (
-    "你是股小智，一位接地气的股票分析师。"
-    "你的风格：说人话、不装逼、像朋友聊天一样给建议。"
+    COMPLIANCE_SYSTEM_PROMPT +
+    "你是股小智，一位接地气的公开行情信息解读助手。"
+    "你的风格：说人话、清晰、不夸大，只解释公开数据和风险。"
     "不用 MACD、RSI、KDJ 这些术语——用'最近涨得有点猛'、'成交量在萎缩'这种表达。"
     "要能共情散户：提到'打工人定投'、'怕高不敢买'、'割肉心疼'这些真实感受。"
-    "每段分析结尾给一个明确态度：【关注】【警惕】【观望】三选一。"
+    "不得使用'建议买入/卖出/加仓/减仓/止盈/止损/目标价/必涨/稳赚'等表达。"
+    "每段分析结尾给一个非交易态度：【信息关注】【风险提示】【继续观察】三选一。"
+    "结尾必须包含：仅供信息参考，不构成投资建议。"
     "控制在 150 字以内。"
 )
 
@@ -113,38 +116,41 @@ def analyst(raw_data):
 
     import requests
     try:
-        resp = requests.post(
-            DEEPSEEK_API_URL,
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": ANALYST_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.8,
-                "max_tokens": 400,
-            },
-            timeout=30,
-        )
+        if DEEPSEEK_API_KEY:
+            resp = requests.post(
+                DEEPSEEK_API_URL,
+                headers={
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": ANALYST_SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.8,
+                    "max_tokens": 400,
+                },
+                timeout=30,
+            )
 
-        if resp.status_code == 200:
-            body = resp.json()
-            advice = body["choices"][0]["message"]["content"]
+            if resp.status_code == 200:
+                body = resp.json()
+                advice = _neutralize_market_wording(enforce_ai_compliance(body["choices"][0]["message"]["content"]))
+            else:
+                advice = _build_fallback_analysis(raw_data)
         else:
-            advice = f"[军师离线] 暂时无法分析 {raw_data.get('name', symbol)}，请稍后重试"
+            advice = _build_fallback_analysis(raw_data)
     except Exception as e:
-        advice = f"[军师离线] 网络波动，稍后重试"
+        advice = _build_fallback_analysis(raw_data)
 
     # 提取态度
-    verdict = "观望"
-    if "关注" in advice:
-        verdict = "关注"
-    elif "警惕" in advice:
-        verdict = "警惕"
+    verdict = "继续观察"
+    if "信息关注" in advice:
+        verdict = "信息关注"
+    elif "风险提示" in advice or "警惕" in advice:
+        verdict = "风险提示"
 
     result = {
         "advice": advice,
@@ -157,6 +163,75 @@ def analyst(raw_data):
     _write_stock_cache(symbol, raw_data)
 
     return result
+
+
+def _build_fallback_analysis(data):
+    """AI 服务不可用时，基于已取得的公开行情字段生成可读降级摘要。"""
+    name = data.get("name") or data.get("symbol", "该股票")
+    symbol = data.get("symbol", "")
+    price = data.get("price", "N/A")
+    change = data.get("change_pct", "N/A")
+    pe = data.get("pe_ratio", "N/A")
+    mcap = data.get("market_cap", "N/A")
+    market = "A股" if data.get("market") == "a" else "美股"
+    vol = data.get("volume_trend", data.get("turnover_rate", "N/A"))
+
+    change_num = _safe_float(change)
+    if change_num is None:
+        state = "公开行情变动比例暂不完整，建议先核对数据来源。"
+        verdict = "继续观察"
+    elif abs(change_num) >= 5:
+        state = f"公开行情变动比例为{change}%，近期价格波动幅度较大，可结合成交量和公开消息核对。"
+        verdict = "风险提示"
+    elif change_num > 0:
+        state = f"公开行情变动比例为{change}%，较前一参考值上升，仍需结合成交量和公司公告一起看。"
+        verdict = "信息关注"
+    elif change_num < 0:
+        state = f"公开行情变动比例为{change}%，较前一参考值下降，可继续核对成交量和公告变化。"
+        verdict = "风险提示"
+    else:
+        state = "公开行情较前一参考值变化不大，可继续核对成交量和后续公告变化。"
+        verdict = "继续观察"
+
+    lines = [
+        f"{name}（{symbol}）属于{market}公开行情整理：最新价{price}，{state}",
+        f"基础指标方面，PE为{pe}，市值为{mcap}，成交量/换手信息为{vol}。",
+        f"这是一份本地降级信息整理，AI 服务暂不可用时用于保留可读摘要，不提供交易动作、仓位安排、价格预测，也不承诺收益。",
+        f"【{verdict}】仅供信息参考，不构成投资建议。",
+    ]
+    return _neutralize_market_wording(enforce_ai_compliance("\n".join(lines)))
+
+
+def _neutralize_market_wording(text):
+    """中性化行情描述，避免输出方向判断式表述。"""
+    if not text:
+        return ""
+    replacements = {
+        "当前涨跌幅": "公开行情变动比例",
+        "涨跌幅": "公开行情变动比例",
+        "价格表现偏强": "较前一参考值上升",
+        "价格表现偏弱": "较前一参考值下降",
+        "表现偏强": "较前一参考值上升",
+        "表现偏弱": "较前一参考值下降",
+        "偏强": "较前一参考值上升",
+        "偏弱": "较前一参考值下降",
+        "乐观": "变化向上",
+        "悲观": "变化向下",
+        "恐慌": "波动较大",
+    }
+    neutral = str(text)
+    for source, target in replacements.items():
+        neutral = neutral.replace(source, target)
+    return neutral
+
+
+def _safe_float(value):
+    try:
+        if value in (None, "", "N/A", "--"):
+            return None
+        return float(str(value).replace("%", "").replace(",", ""))
+    except (TypeError, ValueError):
+        return None
 
 
 def _build_analyst_prompt(data):
@@ -175,13 +250,15 @@ def _build_analyst_prompt(data):
 
 股票：{name}（{symbol}）
 最新价：{price}
-涨跌：{change}%
+公开行情变动比例：{change}%
 市盈率(PE)：{pe}
 市值：{mcap}
 成交量趋势：{vol}
 相关新闻：{news}
 
-请给出一段接地气的分析，最后用【关注】【警惕】【观望】中的一个收尾。"""
+请给出一段接地气的公开信息解读，说明数据现象和风险即可。
+禁止给出买入、卖出、加仓、减仓、仓位、目标价、止盈止损、收益预测等具体投资建议。
+最后用【信息关注】【风险提示】【继续观察】中的一个收尾，并补充“仅供信息参考，不构成投资建议”。"""
 
 
 # ============================================================
@@ -214,7 +291,7 @@ def keeper(user_id, symbol, stock_name, verdict, summary):
         "symbol": symbol,
         "name": stock_name,
         "verdict": verdict,
-        "summary": summary,
+        "summary": _neutralize_market_wording(summary),
     })
 
     # 只保留最近 100 条
@@ -247,7 +324,11 @@ def get_user_memory(user_id):
     if not os.path.exists(user_file):
         return {"user_id": user_id, "queries": [], "watchlist": []}
     with open(user_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+        memory = json.load(f)
+    for query in memory.get("queries", []):
+        query["summary"] = _neutralize_market_wording(query.get("summary", ""))
+        query["verdict"] = _neutralize_market_wording(query.get("verdict", ""))
+    return memory
 
 
 # ============================================================

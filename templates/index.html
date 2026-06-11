@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'">
-    <title>股小智 - AI 股票分析</title>
+    <title>股小智 - AI 股票公开信息摘要</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -24,19 +24,71 @@
                 <div class="search-results" id="searchResults" role="listbox" aria-label="搜索结果"></div>
             </div>
             <div class="top-actions">
+                <a href="#reportHero" class="nav-link">生成摘要</a>
+                <a href="#analysisCard" class="nav-link">示例摘要</a>
+                <a href="/subscribe" class="nav-link">服务价格</a>
                 <a href="/login" class="btn-login-header" style="text-decoration: none; margin-right: 8px;">
                     <button style="background: transparent; color: var(--accent); border: 1px solid var(--accent); padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; font-family: var(--font-heading); transition: all 0.2s ease;">
                         登录
                     </button>
                 </a>
+                <div id="userLimitBadge" style="margin-right: 10px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center;">
+                    <span id="limitText">加载中...</span>
+                </div>
                 <a href="/subscribe" class="btn-subscribe" style="text-decoration: none; margin-right: 10px;">
                     <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">
-                        💎 开通会员
+                        开通信息整理服务
                     </button>
                 </a>
                 <button class="btn-watchlist" id="btnWatchlist" aria-label="自选股列表">⭐<span class="watchlist-count" id="watchlistCount">0</span></button>
             </div>
         </header>
+
+        <section class="report-hero" id="reportHero">
+            <div class="report-hero-copy">
+                <div class="hero-badge">AI 股票信息整理工具</div>
+                <h1>AI 帮你快速看懂一只股票最近发生了什么</h1>
+                <p>自动整理新闻、公告、公开资金相关数据和风险提示。不输出交易动作，不做走势判断，只帮你节省查资料的时间。</p>
+                <form class="hero-report-form" id="reportForm">
+                    <input type="text" id="reportInput" placeholder="输入股票代码 / 股票名称" aria-label="输入股票代码或股票名称">
+                    <button type="submit" id="reportSubmit">生成 AI 股票报告</button>
+                </form>
+                <div class="hero-form-error" id="reportFormError" role="status" aria-live="polite"></div>
+                <div class="hero-links">
+                    <button type="button" id="exampleReportBtn">查看示例摘要</button>
+                    <span>仅基于公开信息整理，不构成投资建议。投资有风险，请独立判断。</span>
+                </div>
+            </div>
+            <div class="hero-preview-card" aria-label="股票公开信息摘要预览">
+                <div class="preview-card-title">股票公开信息摘要预览</div>
+                <ul>
+                    <li>近期重点摘要</li>
+                    <li>新闻动态整理</li>
+                    <li>公司公告整理</li>
+                    <li>公开市场数据整理</li>
+                    <li>潜在风险提示</li>
+                </ul>
+                <div class="preview-card-foot">约 1 分钟扫读重点信息</div>
+            </div>
+        </section>
+
+        <section class="pain-points" aria-label="产品解决的问题">
+            <div class="section-kicker">把分散的信息，整理成看得懂的摘要</div>
+            <div class="pain-grid">
+                <div class="pain-card">
+                    <h3>没时间刷新闻</h3>
+                    <p>AI 帮你整理近期重点消息。</p>
+                </div>
+                <div class="pain-card">
+                    <h3>公告看不懂重点</h3>
+                    <p>提炼公司公告里的关键变化。</p>
+                </div>
+                <div class="pain-card">
+                    <h3>公开数据太分散</h3>
+                    <p>汇总公开市场数据和近期讨论点。</p>
+                </div>
+            </div>
+        </section>
 
         <!-- 市场概览 -->
         <div class="market-overview" id="marketOverview">
@@ -57,7 +109,7 @@
                 </div>
             </div>
             <div class="overview-card">
-                <div class="overview-label">市场情绪</div>
+                <div class="overview-label">公开行情概览</div>
                 <div class="sentiment-indicator" id="sentiment">--</div>
                 <div class="sentiment-label" id="sentimentLabel">计算中...</div>
             </div>
@@ -85,7 +137,7 @@
             <main class="content">
                 <div class="content-header">
                     <div class="tabs" id="tabBar">
-                        <a href="#" class="tab" data-market="a" data-sort="change" role="tab">涨跌幅</a>
+                        <a href="#" class="tab" data-market="a" data-sort="change" role="tab">变动比例</a>
                         <a href="#" class="tab active" data-market="a" data-sort="amount" role="tab" aria-selected="true">成交额</a>
                         <a href="#" class="tab" data-market="a" data-sort="volume" role="tab">成交量</a>
                         <a href="#" class="tab" data-market="us" data-sort="change" role="tab">美股</a>
@@ -93,7 +145,7 @@
                     <div class="update-time" id="updateTime">更新于 --:--</div>
                 </div>
 
-                <div class="us-data-banner" id="usDataBanner">🌐 美股数据来自 Yahoo Finance，可能存在延迟</div>
+                <div class="us-data-banner" id="usDataBanner">美股列表展示公开数据兜底，可能存在延迟</div>
 
                 <div class="market-status" id="marketStatus">
                     <span class="status-dot"></span>
@@ -101,7 +153,7 @@
                 </div>
 
                 <div class="table-wrap">
-                <table class="stock-table" role="grid" summary="股票行情数据表，包含名称、价格、涨跌幅、业务标签、股息率、热度等信息">
+                <table class="stock-table" role="grid" summary="股票公开行情数据表，包含名称、价格、变动比例、业务标签、股息率等信息">
                     <thead>
                         <tr role="row">
                             <th class="col-wl" role="columnheader"></th>
@@ -109,7 +161,7 @@
                             <th class="col-name" role="columnheader" aria-sort="none">名称 <span class="sort-arrow">↕</span></th>
                             <th class="col-tag" role="columnheader">赛道</th>
                             <th class="col-price" role="columnheader" aria-sort="none">最新价 <span class="sort-arrow">↕</span></th>
-                            <th class="col-change" role="columnheader" aria-sort="none">涨跌幅 <span class="sort-arrow">↕</span></th>
+                            <th class="col-change" role="columnheader" aria-sort="none">变动比例 <span class="sort-arrow">↕</span></th>
                             <th class="col-change hide-mobile" role="columnheader" aria-sort="none">成交额</th>
                             <th class="col-dividend hide-mobile" role="columnheader">股息率</th>
                             <th class="col-change hide-mobile" role="columnheader" aria-sort="none">PE</th>
@@ -127,7 +179,7 @@
             <aside class="ai-panel" id="aiPanel">
                 <div class="panel-header">
                     <div class="ai-avatar">🤖</div>
-                    <span>股小智 · 军师</span>
+                    <span>股小智 · 公开信息摘要</span>
                 </div>
 
                 <div class="sector-heat-card" id="sectorHeatCard" style="display:none">
@@ -170,7 +222,10 @@
                     <div class="analysis-chat" id="analysisChat">
                         <div class="chat-avatar">🤖</div>
                         <div class="chat-bubble ai-bubble">
-                            <div class="analysis-title-decor"><span>军师分析</span></div>
+                            <div class="analysis-title-decor"><span>免费摘要预览</span></div>
+                            <div class="analysis-risk-notice" style="font-size:11px;color:var(--text-muted);line-height:1.5;margin:4px 0 8px;">
+                                AI 仅整理公开信息，不提供交易动作、仓位安排、价格预测，也不承诺收益。
+                            </div>
                             <div class="chat-text" id="analysisBody">分析中...</div>
                             <div class="analysis-basis" id="analysisBasis" style="display:none">
                                 <button class="analysis-basis-toggle" id="basisToggle">📊 查看分析依据</button>
@@ -194,37 +249,45 @@
                 </div>
 
                 <div class="premium-card">
-                    <div class="premium-icon">🔔</div>
-                    <div class="premium-title">AI异动预警</div>
-                    <div class="premium-desc">你关注的股票有任何风吹草动，AI第一时间帮你解读</div>
+                    <div class="premium-icon">📄</div>
+                    <div class="premium-title">完整公开信息整理服务</div>
+                    <div class="premium-desc">查看完整新闻、公告、公开市场数据、风险提示和 AI 摘要。</div>
                     <div class="premium-price">
                         <span class="price-num">9.9</span>
                         <span class="price-unit">元/月</span>
                     </div>
-                    <button class="btn-premium" id="btnPremium" aria-label="订阅 AI异动预警">立即订阅</button>
+                    <button class="btn-premium" id="btnPremium" aria-label="开通信息整理服务">查看完整信息整理</button>
                 </div>
             </aside>
         </div>
 
+        <section class="value-note">
+            <div>
+                <h2>完整公开信息整理服务</h2>
+                <p>以较低成本获取更完整的公开信息整理，帮助节省资料查找时间。</p>
+            </div>
+            <a href="/subscribe">查看服务权益</a>
+        </section>
+
         <footer class="app-footer">
-            <div><a href="#">关于股小智</a><a href="#">反馈建议</a><a href="#">使用帮助</a></div>
-            <span>© 2026 股小智 · AI 驱动的智能股票分析工具</span>
-            <span style="color:var(--text-muted);font-size:10px">⚠️ AI分析仅供参考，不构成投资建议。投资有风险，入市需谨慎。</span>
+            <div><a href="#reportHero">关于股小智</a><a href="/login">反馈建议</a><a href="#reportHero">使用帮助</a></div>
+            <span>© 2026 股小智 · AI 股票公开信息整理工具</span>
+            <span style="color:var(--text-muted);font-size:10px">本产品仅基于公开信息进行整理和摘要，内容仅供信息参考，不构成任何投资建议、交易建议或个性化投资决策依据，也不承诺收益。投资有风险，用户应独立判断并自行承担风险。</span>
         </footer>
     </div>
 
     <div class="modal-overlay" id="payModal" style="display:none">
         <div class="modal">
             <button class="modal-close" id="btnClosePay" aria-label="关闭">✕</button>
-            <h3>订阅 AI异动预警</h3>
-            <p>每月 9.9 元，AI 实时盯盘</p>
-            <div class="qr-placeholder">
+            <h3>解锁完整报告</h3>
+            <p>每月 9.9 元，获取更完整的公开信息摘要</p>
+            <div class="qr-placeholder" id="payQrBox">
                 <div class="qr-icon">📧</div>
-                <p>输入邮箱接收开通链接</p>
+                <p id="payQrText">输入邮箱接收开通链接</p>
                 <input type="email" id="payEmail" placeholder="your@email.com" style="margin-top:8px;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:13px;width:80%">
             </div>
-            <button class="btn-premium" id="btnPaySubmit" style="font-size:13px;padding:8px 24px">提交订阅</button>
-            <p class="pay-note">💡 内测期间，提交邮箱后24小时内开通</p>
+            <button class="btn-premium" id="btnPaySubmit" style="font-size:13px;padding:8px 24px">提交开通</button>
+            <p class="pay-note" id="payStatusText">内测期间，提交邮箱后24小时内开通。本工具仅整理公开信息，不构成投资建议。</p>
         </div>
     </div>
 

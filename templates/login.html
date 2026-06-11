@@ -491,7 +491,7 @@
                     </svg>
                 </div>
                 <h1 class="login-title">股小智</h1>
-                <p class="login-subtitle">AI 驱动的股票分析平台</p>
+                <p class="login-subtitle">AI 驱动的股票公开信息整理工具</p>
             </div>
 
             <!-- 错误提示 -->
@@ -586,6 +586,14 @@
 
     <script>
     (function() {
+        function finishLogin(identity) {
+            var safeId = 'acct_' + String(identity || 'demo').trim().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 24);
+            localStorage.setItem('guxiaozhi_user_id', safeId);
+            var params = new URLSearchParams(window.location.search);
+            var next = params.get('next') || '/';
+            window.location.href = next;
+        }
+
         // 标签切换
         var tabs = document.querySelectorAll('.login-tab');
         var forms = {
@@ -666,7 +674,7 @@
                 // 模拟登录成功
                 this.textContent = '登录中...';
                 setTimeout(function() {
-                    window.location.href = '/';
+                    finishLogin(username);
                 }, 1000);
             });
         }
@@ -680,7 +688,7 @@
                 if (!code) { showError('请输入验证码'); return; }
                 this.textContent = '登录中...';
                 setTimeout(function() {
-                    window.location.href = '/';
+                    finishLogin(phone);
                 }, 1000);
             });
         }

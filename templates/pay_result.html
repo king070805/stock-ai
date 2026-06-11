@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付结果 - 股小智</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .result-container {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .result-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        .result-icon.success { color: #07c160; }
+        .result-icon.fail { color: #ff6b6b; }
+        .result-title {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .result-info {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .result-btn {
+            display: inline-block;
+            padding: 12px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            margin: 10px;
+        }
+        .result-btn:hover {
+            opacity: 0.9;
+        }
+        .plan-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .plan-info p {
+            margin: 5px 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        {% if success %}
+        <div class="result-icon success">&#10004;</div>
+        <h1 class="result-title">支付成功！</h1>
+        <div class="plan-info">
+            <p><strong>套餐：</strong>{{ plan_name }}</p>
+            <p><strong>金额：</strong>¥{{ amount }}</p>
+        </div>
+        <p class="result-info">
+            会员权益已开通，您可以立即使用全部功能。<br>
+            {{ message or '' }}
+        </p>
+        <a href="/" class="result-btn">开始使用</a>
+        {% else %}
+        <div class="result-icon fail">&#10008;</div>
+        <h1 class="result-title">支付失败</h1>
+        <p class="result-info">
+            {{ message or '支付过程中出现问题，请重试或联系客服。' }}
+        </p>
+        <a href="/subscribe" class="result-btn">重新支付</a>
+        <a href="/" class="result-btn" style="background: #999;">返回首页</a>
+        {% endif %}
+    </div>
+</body>
+</html>

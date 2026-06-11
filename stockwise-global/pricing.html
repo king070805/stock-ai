@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - StockWise</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <i class="fas fa-chart-line"></i>
+                <span>StockWise</span>
+            </a>
+            <div class="nav-actions">
+                <a href="login.html" class="btn-login">Log In</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Pricing Section -->
+    <section class="pricing-page">
+        <div class="pricing-header">
+            <h1>Choose Your Plan</h1>
+            <p>Unlock the full power of AI-driven stock analysis</p>
+            <div class="billing-toggle">
+                <span class="active">Monthly</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="billingToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span>Yearly <span class="save-badge">Save 17%</span></span>
+            </div>
+        </div>
+
+        <div class="pricing-cards">
+            <!-- Free Plan -->
+            <div class="pricing-card">
+                <div class="card-header">
+                    <h3>Free</h3>
+                    <div class="price">
+                        <span class="currency">$</span>
+                        <span class="amount">0</span>
+                        <span class="period">/month</span>
+                    </div>
+                </div>
+                <div class="card-features">
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Basic stock search</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>5 watchlist stocks</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Daily market overview</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Real-time price data</span>
+                    </div>
+                    <div class="feature disabled">
+                        <i class="fas fa-times"></i>
+                        <span>AI analysis</span>
+                    </div>
+                    <div class="feature disabled">
+                        <i class="fas fa-times"></i>
+                        <span>Real-time alerts</span>
+                    </div>
+                </div>
+                <button class="btn-plan">Get Started</button>
+            </div>
+
+            <!-- Pro Plan -->
+            <div class="pricing-card popular">
+                <div class="popular-badge">Most Popular</div>
+                <div class="card-header">
+                    <h3>Pro</h3>
+                    <div class="price">
+                        <span class="currency">$</span>
+                        <span class="amount" data-monthly="19.99" data-yearly="16.99">19.99</span>
+                        <span class="period">/month</span>
+                    </div>
+                </div>
+                <div class="card-features">
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Everything in Free</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Unlimited watchlist</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>AI analysis (50/month)</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Real-time alerts</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Historical data & charts</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Priority email support</span>
+                    </div>
+                </div>
+                <div id="paypal-button-pro"></div>
+                <button class="btn-plan btn-primary" onclick="startPayPalSubscription('pro')">Subscribe with PayPal</button>
+            </div>
+
+            <!-- Enterprise Plan -->
+            <div class="pricing-card">
+                <div class="card-header">
+                    <h3>Enterprise</h3>
+                    <div class="price">
+                        <span class="currency">$</span>
+                        <span class="amount" data-monthly="49.99" data-yearly="41.99">49.99</span>
+                        <span class="period">/month</span>
+                    </div>
+                </div>
+                <div class="card-features">
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Everything in Pro</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Unlimited AI analysis</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>API access</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Custom reports</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>Dedicated account manager</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check"></i>
+                        <span>24/7 phone support</span>
+                    </div>
+                </div>
+                <div id="paypal-button-enterprise"></div>
+                <button class="btn-plan" onclick="startPayPalSubscription('enterprise')">Contact Sales</button>
+            </div>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="payment-methods">
+            <p>Secure payment powered by</p>
+            <div class="payment-icons">
+                <i class="fab fa-paypal"></i>
+                <i class="fab fa-cc-visa"></i>
+                <i class="fab fa-cc-mastercard"></i>
+                <i class="fab fa-cc-amex"></i>
+                <i class="fab fa-alipay"></i>
+            </div>
+        </div>
+
+        <div class="pricing-faq">
+            <h2>Frequently Asked Questions</h2>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Can I cancel my subscription anytime?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, you can cancel your subscription at any time. Your access will continue until the end of your current billing period. No hidden fees or penalties.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>What payment methods do you accept?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We accept PayPal, all major credit cards (Visa, MasterCard, American Express), and Alipay. All payments are processed securely through PayPal's encrypted payment system.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Is there a free trial for paid plans?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! We offer a 7-day free trial for our Pro plan. No credit card required to start. Experience the full power of AI stock analysis risk-free.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>How accurate is the AI analysis?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Our AI analyzes technical indicators, fundamental data, and market sentiment to provide comprehensive insights. While no prediction is 100% accurate, our AI has demonstrated strong performance in identifying trends and opportunities.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#about">About StockWise</a>
+            <a href="#feedback">Feedback</a>
+            <a href="#help">Help Center</a>
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+        </div>
+        <p class="copyright">© 2024 StockWise. All rights reserved.</p>
+    </footer>
+
+    <script src="assets/js/pricing.js"></script>
+    <script src="api/paypal-integration.js"></script>
+    <script>
+        // Initialize PayPal when ready
+        function startPayPalSubscription(plan) {
+            alert('PayPal integration coming soon! Please configure your PayPal Client ID in api/paypal-integration.js');
+        }
+    </script>
+</body>
+</html>

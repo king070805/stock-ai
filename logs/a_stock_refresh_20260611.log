@@ -1,0 +1,100 @@
+﻿[2026-06-11 09:30:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 09:30:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 09:30:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 09:30:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 09:40:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 09:40:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 09:40:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 09:40:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 09:50:07] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 09:50:07] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 09:50:09] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 09:50:09] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:00:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:00:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:00:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:00:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:10:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:10:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:10:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:10:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:20:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:20:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:20:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:20:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:30:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:30:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:30:15] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:30:15] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:40:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:40:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:40:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:40:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 10:50:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 10:50:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 10:50:15] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 10:50:15] [INFO] ====== Refresh Completed ======
+[2026-06-11 11:00:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 11:00:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 11:00:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 11:00:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 11:10:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 11:10:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 11:10:15] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 11:10:15] [INFO] ====== Refresh Completed ======
+[2026-06-11 11:20:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 11:20:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 11:20:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 11:20:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 11:30:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 11:30:02] [WARN] Not in trading hours, skipping refresh
+[2026-06-11 13:00:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:00:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:00:14] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:00:14] [INFO] ====== Refresh Completed ======
+[2026-06-11 13:10:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:10:03] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:10:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:10:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 13:20:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:20:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:20:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:20:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 13:30:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:30:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:30:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:30:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 13:40:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:40:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:40:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:40:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 13:50:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 13:50:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 13:50:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 13:50:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:00:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:00:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:00:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:00:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:10:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:10:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:10:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:10:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:20:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:20:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:20:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:20:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:30:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:30:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:30:15] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:30:15] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:40:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:40:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:40:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:40:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 14:50:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 14:50:02] [INFO] Calling API to refresh A-Stock data: http://localhost:5000/api/stocks?market=a&sort=change
+[2026-06-11 14:50:05] [SUCCESS] A-Stock data refresh successful, got 1 stocks
+[2026-06-11 14:50:05] [INFO] ====== Refresh Completed ======
+[2026-06-11 15:00:02] [INFO] ====== A-Stock Backup Refresh Task Started ======
+[2026-06-11 15:00:02] [WARN] Not in trading hours, skipping refresh

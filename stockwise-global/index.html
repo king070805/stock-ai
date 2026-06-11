@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股小智 - AI 股票信息整理工具</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <i class="fas fa-chart-line"></i>
+                <span>股小智</span>
+            </a>
+            <div class="nav-search">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="搜索股票代码或公司名称..." id="stockSearch">
+            </div>
+            <div class="nav-actions">
+                <a href="login.html" class="btn-login">登录</a>
+                <a href="pricing.html" class="btn-premium">
+                    <i class="fas fa-gem"></i> 9.9 元/月
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="hero-copy">
+                <span class="hero-kicker">低成本 AI 股票信息整理工具</span>
+                <h1>一杯奶茶钱，让 AI 帮你整理股票信息</h1>
+                <p>
+                    股小智面向普通散户和股票新手，把行情、赛道、股息、估值和市场热度整理成更容易阅读的结构化信息。
+                </p>
+                <div class="hero-actions">
+                    <a href="#stockTable" class="btn-hero-primary">
+                        <i class="fas fa-table"></i> 查看行情整理
+                    </a>
+                    <a href="pricing.html" class="btn-hero-secondary">
+                        <i class="fas fa-bell"></i> 了解 AI 异动提醒
+                    </a>
+                </div>
+                <div class="compliance-note">
+                    <i class="fas fa-shield-alt"></i>
+                    所有内容仅供信息整理，不构成投资建议。投资有风险，决策需谨慎。
+                </div>
+            </div>
+            <div class="hero-panel" aria-label="股小智信息整理示例">
+                <div class="panel-topline">
+                    <span>今日信息卡片</span>
+                    <strong>AI 整理中</strong>
+                </div>
+                <div class="insight-list">
+                    <div class="insight-item">
+                        <span class="insight-icon"><i class="fas fa-layer-group"></i></span>
+                        <div>
+                            <strong>赛道归类</strong>
+                            <p>把公司按科技、金融、消费等方向快速分组。</p>
+                        </div>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-icon"><i class="fas fa-chart-simple"></i></span>
+                        <div>
+                            <strong>关键指标</strong>
+                            <p>整理价格、涨跌幅、成交量、股息率和 P/E。</p>
+                        </div>
+                    </div>
+                    <div class="insight-item">
+                        <span class="insight-icon"><i class="fas fa-file-lines"></i></span>
+                        <div>
+                            <strong>AI 摘要</strong>
+                            <p>用新手能看懂的语言解释公开行情变化。</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-disclaimer">不提供买卖点、仓位安排、价格预测，也不承诺收益。</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="watchlist-section">
+                <h3><i class="fas fa-star"></i> 自选观察</h3>
+                <button class="btn-toggle-watchlist" id="toggleWatchlist">
+                    <i class="fas fa-chevron-down"></i> 展开自选
+                </button>
+                <div class="watchlist-content" id="watchlistContent">
+                    <div class="watchlist-tabs">
+                        <button class="tab-btn active" data-category="all">全部</button>
+                        <button class="tab-btn" data-category="tech">科技</button>
+                        <button class="tab-btn" data-category="finance">金融</button>
+                        <button class="tab-btn" data-category="dividend">股息</button>
+                    </div>
+                    <div class="watchlist-stocks" id="watchlistStocks">
+                        <!-- Dynamic content -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Stock Table Section -->
+        <section class="stock-section">
+            <div class="section-header">
+                <div class="market-tabs">
+                    <button class="market-tab active" data-market="us">美股</button>
+                    <button class="market-tab" data-market="cn">A 股</button>
+                    <button class="market-tab" data-market="hk">港股</button>
+                </div>
+                <button class="btn-alert">
+                    <i class="fas fa-bell"></i> AI 异动提醒
+                </button>
+            </div>
+            <div class="section-intro">
+                <div>
+                    <span>信息整理台</span>
+                    <p>聚合公开行情字段，帮助你先看懂公司和市场变化，再做自己的判断。</p>
+                </div>
+                <strong>仅供信息整理，不构成投资建议</strong>
+            </div>
+
+            <div class="stock-table-container">
+                <table class="stock-table" id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th class="sortable" data-sort="name">名称 <i class="fas fa-sort"></i></th>
+                            <th>赛道</th>
+                            <th class="sortable" data-sort="price">价格 <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="change">涨跌幅 <i class="fas fa-sort"></i></th>
+                            <th>成交量</th>
+                            <th>股息率</th>
+                            <th>P/E</th>
+                            <th>热度</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody">
+                        <!-- Dynamic content -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- AI Information Summary Modal -->
+    <div class="modal" id="aiAnalysisModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-robot"></i> AI 信息整理</h2>
+                <button class="btn-close" id="closeModal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="analysisContent">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-share"><i class="fas fa-share-alt"></i> 分享摘要</button>
+                <button class="btn-track"><i class="fas fa-history"></i> 查看足迹</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#about">关于股小智</a>
+            <a href="#feedback">反馈建议</a>
+            <a href="#help">使用帮助</a>
+        </div>
+        <p class="copyright">© 2026 股小智。AI 整理公开股票信息，仅供参考，不构成投资建议。</p>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+</body>
+</html>

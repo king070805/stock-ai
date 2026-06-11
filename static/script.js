@@ -6,10 +6,13 @@ var currentSort = 'amount';
 var currentSector = 'all';
 var watchlist = loadWatchlist();
 var currentStockData = null;
+var currentPayOrder = null;
+var payCheckTimer = null;
 var userId = localStorage.getItem('guxiaozhi_user_id') || '';
 if (!userId) { userId = 'user_' + crypto.randomUUID().slice(0, 8); localStorage.setItem('guxiaozhi_user_id', userId); }
 
 document.addEventListener('DOMContentLoaded', function() {
+    setupReportForm();
     loadStocks();
     loadBriefing();
     loadSectorHeat();
@@ -22,7 +25,98 @@ document.addEventListener('DOMContentLoaded', function() {
     setupChartCrosshair();
     setupFoldables();
     setupAutoRefresh();
+    loadUserLimit();
+    loadReportFromQuery();
 });
+
+// ========== 首页生成公开信息摘要 ==========
+function setupReportForm() {
+    var form = document.getElementById('reportForm');
+    var input = document.getElementById('reportInput');
+    var error = document.getElementById('reportFormError');
+    var submit = document.getElementById('reportSubmit');
+    var example = document.getElementById('exampleReportBtn');
+    if (!form || !input || !submit) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var code = (input.value || '').trim();
+        if (!code) {
+            if (error) error.textContent = '请输入股票代码或股票名称';
+            input.focus();
+            return;
+        }
+        if (error) error.textContent = '';
+        submit.textContent = '正在整理公开信息...';
+        resolveStockInput(code)
+            .then(function(resolvedCode) {
+                window.location.href = '/report?stock=' + encodeURIComponent(resolvedCode);
+            })
+            .catch(function() {
+                if (error) error.textContent = '未找到匹配股票，可试试：600519、贵州茅台、NVDA、英伟达';
+            })
+            .finally(function() {
+                setTimeout(function() { submit.textContent = '生成 AI 股票报告'; }, 800);
+            });
+    });
+
+    if (example) {
+        example.addEventListener('click', function() {
+            input.value = 'NVDA';
+            if (error) error.textContent = '';
+            analyzeStock('NVDA');
+        });
+    }
+}
+
+function loadReportFromQuery() {
+    var params = new URLSearchParams(window.location.search);
+    var stock = params.get('stock');
+    if (stock) {
+        var input = document.getElementById('reportInput');
+        if (input) input.value = stock;
+        analyzeStock(stock);
+    }
+}
+
+function resolveStockInput(value) {
+    var q = (value || '').trim();
+    if (/^[A-Za-z.]{1,8}$/.test(q) || /^\d{6}$/.test(q)) {
+        return Promise.resolve(q.toUpperCase());
+    }
+    return fetch('/api/search?q=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.results && data.results.length && data.results[0].code) {
+                return data.results[0].code;
+            }
+            throw new Error('not found');
+        });
+}
+
+// ========== 用户次数限制 ==========
+function loadUserLimit() {
+    fetch('/api/user/limit?user_id=' + userId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var info = data.limit_info;
+                var limitText = document.getElementById('limitText');
+                if (limitText) {
+                    if (info.is_member) {
+                        limitText.innerHTML = '✨ 会员 · 今日剩余 ' + info.remaining + '/' + info.limit + ' 次';
+                        limitText.style.color = '#667eea';
+                    } else {
+                        limitText.innerHTML = '🔥 免费 · 今日剩余 ' + info.remaining + '/' + info.limit + ' 次';
+                        if (info.remaining <= 0) {
+                            limitText.style.color = '#ff6b6b';
+                        }
+                    }
+                }
+            }
+        })
+        .catch(function(e) { console.error('获取次数信息失败', e); });
+}
 
 // ========== Auto Refresh ==========
 function setupAutoRefresh() {
@@ -109,7 +203,7 @@ function bindGlobalButtons() {
     safeBind('btnClosePay', 'click', closePay);
     safeBind('watchlistOverlay', 'click', closeWatchlistDrawer);
     var paySub = document.getElementById('btnPaySubmit');
-    if (paySub) paySub.addEventListener('click', function() { showToast('已提交，24小时内开通'); closePay(); });
+    if (paySub) paySub.addEventListener('click', createReportOrder);
 }
 function safeBind(id, event, fn) { var el = document.getElementById(id); if (el) el.addEventListener(event, fn); }
 
@@ -256,11 +350,11 @@ function updateMarketOverview(stocks) {
 
     if (sentiment && sentimentLabel) {
         var sentimentText = '', sentimentEmoji = '';
-        if (avgChange > 1) { sentimentEmoji = '🚀'; sentimentText = '极度乐观'; }
-        else if (avgChange > 0.3) { sentimentEmoji = '😊'; sentimentText = '乐观'; }
-        else if (avgChange > -0.3) { sentimentEmoji = '😐'; sentimentText = '中性'; }
-        else if (avgChange > -1) { sentimentEmoji = '😰'; sentimentText = '谨慎'; }
-        else { sentimentEmoji = '😱'; sentimentText = '恐慌'; }
+        if (avgChange > 1) { sentimentEmoji = '↑'; sentimentText = '上行较多'; }
+        else if (avgChange > 0.3) { sentimentEmoji = '↑'; sentimentText = '小幅上行'; }
+        else if (avgChange > -0.3) { sentimentEmoji = '·'; sentimentText = '变化不大'; }
+        else if (avgChange > -1) { sentimentEmoji = '↓'; sentimentText = '小幅回落'; }
+        else { sentimentEmoji = '↓'; sentimentText = '回落较多'; }
         sentiment.textContent = sentimentEmoji;
         sentimentLabel.textContent = sentimentText;
     }
@@ -384,7 +478,7 @@ function renderStockRows(stocks, isSectorView) {
             '<td class="col-dividend hide-mobile">' + divHtml + '</td>' +
             '<td class="col-change hide-mobile">' + escHtml(s.pe || '-') + '</td>' +
             '<td class="col-heat"><span class="heat-icon ' + heat.cls + '">' + heat.icon + '</span></td>' +
-            '<td class="col-action"><button class="btn-analyze" data-code="' + escHtml(s.code) + '">AI分析</button></td></tr>';
+            '<td class="col-action"><button class="btn-analyze" data-code="' + escHtml(s.code) + '">生成摘要</button></td></tr>';
     });
     if (!rows) rows = '<tr><td colspan="11" class="loading-row">该赛道暂无匹配股票</td></tr>';
     tbody.innerHTML = rows;
@@ -402,7 +496,7 @@ function loadBriefing() {
 }
 
 // ========== AI Analysis ==========
-function analyzeStock(code, btnOrRow) {
+function analyzeStock(code, btnOrRow, forceRefresh) {
     var card = document.getElementById('analysisCard'); var nameEl = document.getElementById('analysisStockName');
     var infoEl = document.getElementById('stockQuickInfo'); var bodyEl = document.getElementById('analysisBody');
     var chartCanvas = document.getElementById('klineChart'); var shareBtn = document.getElementById('btnShare');
@@ -431,12 +525,13 @@ function analyzeStock(code, btnOrRow) {
 
     var ctx = chartCanvas.getContext('2d'); ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
 
-    fetch('/api/analyze?code=' + code + '&user_id=' + userId)
+    var refreshParam = forceRefresh ? '&refresh=true' : '';
+    fetch('/api/analyze?code=' + code + '&user_id=' + userId + refreshParam)
         .then(function(r) { 
             if (r.status === 403) {
                 // 次数用完
                 return r.json().then(function(data) {
-                    if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+                    if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = '生成摘要'; }
                     if (triggerRow) triggerRow.classList.remove('loading-row-state');
                     card.classList.remove('entering');
                     card.style.display = 'block';
@@ -447,7 +542,7 @@ function analyzeStock(code, btnOrRow) {
                         '<div style="color:var(--down);font-weight:600;margin-bottom:8px;font-size:16px;">' + escHtml(data.error) + '</div>' +
                         '<div style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">' + escHtml(data.message) + '</div>' +
                         '<a href="/subscribe" style="display:inline-block;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">' +
-                        '💎 开通会员，畅享AI分析' +
+                        '开通信息整理服务' +
                         '</a>' +
                         '</div>';
                     return null;
@@ -457,22 +552,42 @@ function analyzeStock(code, btnOrRow) {
         })
         .then(function(data) {
             if (!data) return; // 次数用完的情况已处理
-            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = '生成摘要'; }
             if (triggerRow) triggerRow.classList.remove('loading-row-state');
             card.classList.remove('entering');
-            if (data.error) { bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">⚠️ 分析失败</div><div style="color:var(--text-secondary);font-size:12px">' + escHtml(data.error) + '</div>'; return; }
+            if (data.error) { bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">报告生成失败，请稍后重试</div><div style="color:var(--text-secondary);font-size:12px">' + escHtml(data.error) + '<br>本工具仅整理公开信息，不构成投资建议。</div>'; return; }
             currentStockData = data; var s = data.stock;
-            nameEl.textContent = s.name + ' (' + s.code + ')';
+            var stockCode = s.code || s.symbol || code;
+            var peValue = s.pe || s.pe_ratio || '-';
+            nameEl.textContent = s.name + ' (' + stockCode + ')';
             var chg = parseFloat(s.change_pct) || 0; var cCls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
             var sign = chg > 0 ? '+' : '';
 
             infoEl.innerHTML =
                 '<div class="stock-info-item"><span class="info-label">最新价</span><span class="info-value">' + escHtml(s.price || '-') + '</span></div>' +
-                '<div class="stock-info-item"><span class="info-label">涨跌幅</span><span class="info-value ' + cCls + '">' + sign + escHtml(s.change_pct || '-') + '%</span></div>' +
+                '<div class="stock-info-item"><span class="info-label">变动比例</span><span class="info-value ' + cCls + '">' + sign + escHtml(s.change_pct || '-') + '%</span></div>' +
                 '<div class="stock-info-item"><span class="info-label">成交额</span><span class="info-value">' + escHtml(s.amount || '-') + '</span></div>' +
-                '<div class="stock-info-item"><span class="info-label">市盈率</span><span class="info-value">' + escHtml(s.pe || '-') + '</span></div>';
+                '<div class="stock-info-item"><span class="info-label">市盈率</span><span class="info-value">' + escHtml(peValue) + '</span></div>';
 
-            bodyEl.innerHTML = escHtml(data.analysis || '暂无分析结果').replace(/\n/g, '<br>');
+            // 显示缓存提示（如果是缓存结果）
+            var cacheHtml = '';
+            if (data.cached) {
+                cacheHtml = 
+                    '<div style="background:linear-gradient(135deg,#667eea08 0%,#764ba208 100%);border:1px solid #667eea30;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<span style="font-size:18px;">📋</span>' +
+                    '<div>' +
+                    '<div style="font-size:12px;color:#667eea;font-weight:600;">' + escHtml(data.message) + '</div>' +
+                    '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">股价可能已变化，可重新整理最新公开信息</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '<button onclick="analyzeStock(\'' + escHtml(stockCode) + '\', null, true)" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;padding:6px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:bold;white-space:nowrap;">' +
+                    '🔄 重新分析' +
+                    '</button>' +
+                    '</div>';
+            }
+            
+            bodyEl.innerHTML = cacheHtml + buildReportPreviewHtml(data);
             shareBtn.style.display = 'block';
 
             if (benchmark) { benchmark.style.display = 'block'; benchmark.textContent = '基于06-04收盘数据分析'; }
@@ -487,8 +602,8 @@ function analyzeStock(code, btnOrRow) {
             var verdict = data.verdict || '';
             if (verdict && verdictBadge) {
                 verdictBadge.textContent = verdict; verdictBadge.style.display = 'inline-flex';
-                if (verdict === '\u5173\u6ce8') { verdictBadge.style.background = 'rgba(0,212,170,0.12)'; verdictBadge.style.color = '#00D4AA'; }
-                else if (verdict === '\u8b66\u60d5') { verdictBadge.style.background = 'rgba(255,71,87,0.12)'; verdictBadge.style.color = '#FF4757'; }
+                if (verdict === '\u4fe1\u606f\u5173\u6ce8' || verdict === '\u5173\u6ce8') { verdictBadge.style.background = 'rgba(0,212,170,0.12)'; verdictBadge.style.color = '#00D4AA'; }
+                else if (verdict === '\u98ce\u9669\u63d0\u793a' || verdict === '\u8b66\u60d5') { verdictBadge.style.background = 'rgba(255,71,87,0.12)'; verdictBadge.style.color = '#FF4757'; }
                 else { verdictBadge.style.background = 'rgba(210,153,29,0.12)'; verdictBadge.style.color = '#d2991d'; }
             }
 
@@ -513,15 +628,93 @@ function analyzeStock(code, btnOrRow) {
             card.focus();
         })
         .catch(function() {
-            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = 'AI分析'; }
+            if (triggerBtn) { triggerBtn.classList.remove('loading'); triggerBtn.textContent = '生成摘要'; }
             if (triggerRow) triggerRow.classList.remove('loading-row-state');
             card.classList.remove('entering');
-            bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">⚠️ 军师离线</div><div style="color:var(--text-secondary);font-size:12px">AI服务暂时不可用，请稍后重试</div>';
+            bodyEl.innerHTML = '<div style="color:var(--down);font-weight:600;margin-bottom:4px">报告生成失败，请稍后重试</div><div style="color:var(--text-secondary);font-size:12px">本工具仅整理公开信息，不构成投资建议。</div>';
         });
 }
+window.analyzeStock = analyzeStock;
 
 function closeAnalysis() { document.getElementById('analysisCard').style.display = 'none'; currentStockData = null; }
 window.closeAnalysisPublic = closeAnalysis;
+
+function buildReportPreviewHtml(data) {
+    var s = data.stock || {};
+    var state = data.unlock_state || 'login_required';
+    var isPaid = state === 'paid';
+    var reportId = data.report_id || '';
+    var modules = normalizeReportModules(data);
+    var validText = data.valid_until ? '当前报告已解锁，可在 ' + data.valid_until + ' 前重复查看。' : '解锁后有效期内可重复查看。';
+    var unlockTitle = isPaid ? '完整报告已解锁' : (state === 'login_required' ? '登录后解锁完整报告' : '解锁完整报告');
+    var unlockButton = isPaid
+        ? '<button class="btn-unlock-report is-paid" type="button">查看完整报告</button>'
+        : (state === 'login_required'
+            ? '<a class="btn-unlock-report" href="/login?next=' + encodeURIComponent(window.location.pathname + window.location.search) + '">登录后解锁完整报告</a>'
+            : '<button class="btn-unlock-report" type="button" onclick="showPay()">解锁完整报告</button>');
+    var previewKeys = ['basic_info', 'recent_summary', 'news', 'announcements'];
+    var moduleHtml = modules.map(function(module) {
+        var lockedClass = (!isPaid && previewKeys.indexOf(module.key) < 0) ? ' is-preview-locked' : '';
+        var content = (!isPaid && previewKeys.indexOf(module.key) < 0)
+            ? '完整内容需解锁后查看。暂无可整理的信息时会保留占位。'
+            : (module.content || '暂无可整理的信息');
+        return '<div class="report-section' + lockedClass + '"><h4>' + escHtml(module.title) + '</h4><p>' + escHtml(content).replace(/\n/g, '<br>') + '</p></div>';
+    }).join('');
+
+    return '' +
+        '<div class="report-preview">' +
+        moduleHtml +
+        '<div class="locked-report">' +
+        '<h4>' + escHtml(unlockTitle) + '</h4>' +
+        '<p>以较低成本获取更完整的公开信息整理，帮助节省资料查找时间。查看完整新闻、公告、公开市场数据、风险提示和 AI 公开信息摘要。</p>' +
+        '<p>报告编号：' + escHtml(reportId || '生成中') + '</p>' +
+        '<div class="locked-list">' +
+        '<span>新闻动态完整整理</span>' +
+        '<span>公司公告完整整理</span>' +
+        '<span>资金动向整理</span>' +
+        '<span>股价表现概览</span>' +
+        '<span>市场关注点</span>' +
+        '<span>潜在风险提示</span>' +
+        '<span>AI 公开信息摘要</span>' +
+        '<span>免责声明</span>' +
+        '</div>' +
+        unlockButton +
+        '<p style="margin:8px 0 0;color:var(--text-muted);font-size:11px;">' + escHtml(validText) + ' 本报告仅基于公开信息整理，不构成投资建议。</p>' +
+        '</div>' +
+        '</div>';
+}
+
+function normalizeReportModules(data) {
+    var modules = Array.isArray(data.report_modules) ? data.report_modules : [];
+    var byKey = {};
+    modules.forEach(function(module) {
+        if (module && module.key) byKey[module.key] = module;
+    });
+    var s = data.stock || {};
+    var analysis = data.analysis || '暂无可整理的信息';
+    var news = Array.isArray(data.news) ? data.news.slice(0, 5).map(function(n) { return n.title || '暂无可整理的信息'; }).join('；') : '暂无可整理的信息';
+    var policyText = data.policy && data.policy.text ? data.policy.text : '暂无可整理的信息';
+    var fallback = [
+        {key: 'basic_info', title: '股票基础信息', content: (s.name || '-') + '（' + (s.code || s.symbol || '-') + '）｜最新价 ' + (s.price || '-') + '｜公开行情变动比例 ' + (s.change_pct || '-') + '%'},
+        {key: 'recent_summary', title: '近期重点摘要', content: analysis},
+        {key: 'news', title: '新闻动态整理', content: news || '暂无可整理的信息'},
+        {key: 'announcements', title: '公司公告整理', content: policyText},
+        {key: 'capital_flow', title: '资金动向整理', content: data.basis || '暂无可整理的信息'},
+        {key: 'price_overview', title: '股价表现概览', content: '最新价 ' + (s.price || '暂无可整理的信息') + '，公开行情变动比例 ' + (s.change_pct || '暂无可整理的信息') + '%。'},
+        {key: 'market_attention', title: '市场关注点', content: '围绕新闻、公告和公开市场数据整理近期关注维度。'},
+        {key: 'risk_notice', title: '潜在风险提示', content: '需关注数据延迟、公告变化、行业波动和公司基本面变化。'},
+        {key: 'ai_summary', title: 'AI 总结：这只股票最近主要发生了什么', content: analysis},
+        {key: 'disclaimer', title: '免责声明', content: '本报告仅基于公开信息整理，不构成投资建议。投资有风险，请独立判断。'}
+    ];
+    return fallback.map(function(item) {
+        var module = byKey[item.key] || item;
+        return {
+            key: item.key,
+            title: module.title || item.title,
+            content: module.content || item.content || '暂无可整理的信息'
+        };
+    });
+}
 
 // ========== K-line Chart ==========
 function setupChartCrosshair() {
@@ -605,7 +798,8 @@ function drawSimpleBar(canvas, stock) {
 // ========== Share / Memory / Search / Tabs ==========
 function shareAnalysis() {
     if (!currentStockData) return; var s = currentStockData.stock; var a = currentStockData.analysis;
-    var text = '\uD83D\uDCC8 ' + s.name + '(' + s.code + ')\n价格:' + s.price + ' 涨跌:' + (s.change_pct || '-') + '%\n\n\uD83E\uDD16 AI分析:\n' + (a || '').slice(0, 200) + '\n\n免费测你的股票 \u2192 https://stock-ai-6plg.onrender.com';
+    var shareCode = s.code || s.symbol || '';
+    var text = '\uD83D\uDCC8 ' + s.name + '(' + shareCode + ')\n\n\uD83E\uDD16 公开信息摘要:\n' + (a || '').slice(0, 200) + '\n\n仅基于公开信息整理，不构成投资建议。';
     if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function() { showToast('已复制分享文本'); }); } else showToast('请手动复制');
 }
 function toggleMemory() {
@@ -631,8 +825,8 @@ function searchStocks(q, resultsEl) {
     resultsEl.innerHTML = '<div class="search-result-item" style="color:var(--text-muted)">搜索中...</div>'; resultsEl.classList.add('show');
     fetch('/api/search?q=' + encodeURIComponent(q)).then(function(r) { return r.json(); }).then(function(data) {
         if (!data.results || !data.results.length) {
-            resultsEl.innerHTML = '<div class="search-result-item search-guidance">未找到匹配股票。<br>是否查看 <a id="gotoAiSector">🤖 AI算力</a> 热门股？</div>';
-            var link = document.getElementById('gotoAiSector'); if (link) link.addEventListener('click', function() { currentSector = 'ai'; document.querySelectorAll('.sector-filter-btn').forEach(function(b) { b.classList.remove('active'); if (b.getAttribute('data-sector') === 'ai') b.classList.add('active'); }); loadStocks(); resultsEl.classList.remove('show'); });
+            var examples = (data.examples && data.examples.length) ? data.examples.join('、') : '600519、贵州茅台、NVDA、英伟达';
+            resultsEl.innerHTML = '<div class="search-result-item search-guidance">未找到匹配股票。<br>可试试：' + escHtml(examples) + '</div>';
             return;
         }
         resultsEl.innerHTML = data.results.map(function(s) { return '<div class="search-result-item" data-code="' + escHtml(s.code) + '" role="option"><span class="sr-name">' + escHtml(s.name) + '</span><span class="sr-code">' + escHtml(s.code) + '</span></div>'; }).join('');
@@ -647,8 +841,75 @@ function setupWatchlistDrawer() {
 }
 
 // ========== Payment ==========
-function showPay() { document.getElementById('payModal').style.display = 'flex'; }
-function closePay() { document.getElementById('payModal').style.display = 'none'; }
+function showPay() {
+    var modal = document.getElementById('payModal');
+    var status = document.getElementById('payStatusText');
+    var submit = document.getElementById('btnPaySubmit');
+    if (status) status.textContent = '将为当前账号创建月卡订单，支付成功后自动刷新完整报告。本工具仅整理公开信息，不构成投资建议。';
+    if (submit) { submit.disabled = false; submit.textContent = '解锁完整报告'; }
+    if (modal) modal.style.display = 'flex';
+}
+window.showPay = showPay;
+function closePay() {
+    var modal = document.getElementById('payModal');
+    if (modal) modal.style.display = 'none';
+    if (payCheckTimer) { clearInterval(payCheckTimer); payCheckTimer = null; }
+}
+
+function createReportOrder() {
+    var submit = document.getElementById('btnPaySubmit');
+    var status = document.getElementById('payStatusText');
+    var qrBox = document.getElementById('payQrBox');
+    if (!currentStockData) {
+        showToast('请先生成报告预览');
+        return;
+    }
+    if (submit) { submit.disabled = true; submit.textContent = '正在创建订单...'; }
+    if (status) status.textContent = '正在创建订单，请稍候。';
+    fetch('/api/create_order', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            plan_id: 'monthly',
+            pay_type: 'wxpay',
+            user_id: userId
+        })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.success) throw new Error(data.error || '创建订单失败');
+        currentPayOrder = data.order_no;
+        if (qrBox) {
+            qrBox.innerHTML =
+                '<img src="' + escHtml(data.qr_code || '') + '" alt="支付二维码" style="width:160px;height:160px;border-radius:8px;background:#fff;padding:8px;">' +
+                '<p>订单号：' + escHtml(data.order_no) + '</p>' +
+                '<p>金额：¥' + escHtml(data.amount) + '</p>';
+        }
+        if (status) status.textContent = '订单已创建。支付成功后页面会自动刷新完整报告。';
+        if (submit) submit.textContent = '等待支付完成';
+        startOrderPolling(data.order_no);
+    }).catch(function(err) {
+        if (submit) { submit.disabled = false; submit.textContent = '解锁完整报告'; }
+        if (status) status.textContent = '创建订单失败，请稍后重试。' + (err && err.message ? err.message : '');
+    });
+}
+
+function startOrderPolling(orderNo) {
+    if (payCheckTimer) clearInterval(payCheckTimer);
+    payCheckTimer = setInterval(function() {
+        fetch('/api/check_order/' + encodeURIComponent(orderNo))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.order && data.order.status === 'PAID') {
+                    clearInterval(payCheckTimer);
+                    payCheckTimer = null;
+                    closePay();
+                    showToast('支付已确认，正在刷新完整报告');
+                    var stock = currentStockData && currentStockData.stock ? (currentStockData.stock.code || currentStockData.stock.symbol) : '';
+                    if (stock) analyzeStock(stock, null, true);
+                }
+            })
+            .catch(function() {});
+    }, 3000);
+}
 
 // ========== Toast ==========
 function showToast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show'; setTimeout(function() { t.classList.remove('show'); }, 2500); }
@@ -659,5 +920,5 @@ function showUndoToast(msg, undoFn) {
 }
 
 // ========== Util ==========
-function escHtml(s) { if (!s) return ''; return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function escHtml(s) { if (s === null || s === undefined) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 })();

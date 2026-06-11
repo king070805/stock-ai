@@ -18,17 +18,30 @@ except ImportError:
 import io
 import base64
 
+# 支付宝官方支付模块
+try:
+    from alipay_payment import (
+        create_alipay_page_order, create_alipay_wap_order,
+        verify_alipay_notify, query_order, generate_order_no
+    )
+    ALIPAY_ENABLED = True
+except ImportError:
+    ALIPAY_ENABLED = False
+
 # 支付配置
 PAYMENT_CONFIG = {
     'app_name': '股小智会员',
-    # 微信收款码URL（已配置）
-    'wx_pay_url': 'wxp://f2f031hwP19cZF95xZkBJQ0RNbUJ_mbq6WGL9T6RcS5EurVBbL1gr2c8mAGZxKHkh8TD',
-    # 支付宝收款码URL（已配置）
-    'alipay_url': 'https://qr.alipay.com/fkx14375b9m8pvsj5hamvb1',
-    # ⚠️ 请修改为您自己的密钥（生产环境必须修改！）
-    'callback_key': 'guxiaozhi_secret_2024',
-    'order_timeout': 300,  # 订单超时时间（秒）
+    # 网站域名（用于支付回调）
+    'site_url': 'https://guxiaozhi-ai.up.railway.app',
+    'order_timeout': 900,  # 订单超时时间（秒）15分钟
 }
+
+# 判断是否为手机访问
+def is_mobile_request():
+    """判断当前请求是否来自手机"""
+    user_agent = request.headers.get('User-Agent', '').lower()
+    mobile_keywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'windows phone']
+    return any(kw in user_agent for kw in mobile_keywords)
 
 # 会员套餐配置 - "一杯奶茶开启股票之旅"
 # 成本核算：DeepSeek-Chat ~0.3分/次，毛利率64%-98%
@@ -39,7 +52,7 @@ MEMBER_PLANS = {
         'duration_days': 3,
         'tag': '一瓶水的价格',
         'daily_limit': 5,
-        'features': ['AI分析5次/天', '异动预警推送', '基础选股策略'],
+        'features': ['信息摘要5次/天', '公开信息提醒', '基础资料整理'],
     },
     'weekly': {
         'name': '周卡',
@@ -47,7 +60,7 @@ MEMBER_PLANS = {
         'duration_days': 7,
         'tag': '半杯奶茶',
         'daily_limit': 10,
-        'features': ['AI分析10次/天', '异动预警推送', '基础选股策略', '赛道热度追踪'],
+        'features': ['信息摘要10次/天', '公开信息提醒', '基础资料整理', '赛道公开信息整理'],
     },
     'monthly': {
         'name': '月卡',
@@ -55,15 +68,15 @@ MEMBER_PLANS = {
         'duration_days': 30,
         'tag': '一杯奶茶',
         'daily_limit': 15,
-        'features': ['AI分析15次/天', '异动预警推送', '高级选股策略', '赛道热度追踪'],
+        'features': ['信息摘要15次/天', '公开信息提醒', '完整资料整理', '赛道公开信息整理'],
     },
     'quarterly': {
         'name': '季卡',
         'amount': '25.9',
         'duration_days': 90,
-        'tag': '超值推荐',
+        'tag': '高频整理',
         'daily_limit': 20,
-        'features': ['AI分析20次/天', '异动预警推送', '高级选股策略', '赛道热度追踪', 'AI复盘日报', '优先客服支持'],
+        'features': ['信息摘要20次/天', '公开信息提醒', '完整资料整理', '赛道公开信息整理', 'AI 信息整理日报', '优先客服支持'],
     },
     'yearly': {
         'name': '年卡VIP',
@@ -71,12 +84,12 @@ MEMBER_PLANS = {
         'duration_days': 365,
         'tag': '每天两毛四',
         'daily_limit': 30,
-        'features': ['AI分析30次/天', '全部季卡权益', '专属AI模型', '深度研报解读', '一对一投资顾问', '年度投资报告'],
+        'features': ['信息摘要30次/天', '全部季卡权益', '专属AI模型', '公开资料深度整理', '一对一信息整理支持', '年度信息整理摘要'],
     },
 }
 
 # ==================== 用户次数限制系统 ====================
-# 用户每日AI分析次数记录（生产环境请使用Redis/数据库）
+# 用户每日信息摘要次数记录（生产环境请使用Redis/数据库）
 user_daily_usage = {}
 
 # 免费用户每日限制
@@ -86,7 +99,7 @@ FREE_DAILY_LIMIT = 1
 user_memberships = {}
 
 def get_user_daily_limit(user_id='anonymous'):
-    """获取用户每日AI分析次数限制"""
+    """获取用户每日信息摘要次数限制"""
     membership = user_memberships.get(user_id)
     if membership:
         plan = MEMBER_PLANS.get(membership['plan_id'])
@@ -118,6 +131,113 @@ def get_user_limit_info(user_id='anonymous'):
         'remaining': remaining,
         'is_member': user_id in user_memberships,
     }
+
+# ==================== 信息摘要缓存系统 ====================
+# 缓存用户最近分析的股票结果（30分钟内免费复看）
+# 结构: {user_id: {stock_code: {'data': {...}, 'time': datetime}}}
+ai_analysis_cache = {}
+CACHE_DURATION_MINUTES = 30  # 缓存有效期30分钟
+
+def get_cached_analysis(user_id, stock_code):
+    """获取缓存的分析结果"""
+    user_cache = ai_analysis_cache.get(user_id, {})
+    cached = user_cache.get(stock_code)
+    if cached:
+        elapsed = (datetime.now() - cached['time']).total_seconds() / 60
+        if elapsed < CACHE_DURATION_MINUTES:
+            return cached['data'], elapsed
+    return None, 0
+
+def cache_analysis(user_id, stock_code, data):
+    """缓存分析结果"""
+    if user_id not in ai_analysis_cache:
+        ai_analysis_cache[user_id] = {}
+    ai_analysis_cache[user_id][stock_code] = {
+        'data': data,
+        'time': datetime.now()
+    }
+
+def build_report_meta(user_id, stock_code):
+    """构造报告状态元信息，用于前端区分登录/付费/已解锁状态。"""
+    safe_user = user_id or "anonymous"
+    safe_code = str(stock_code or "").upper()
+    today = datetime.now().strftime("%Y%m%d")
+    report_id = hashlib.md5(f"{safe_user}:{safe_code}:{today}".encode()).hexdigest()[:12]
+    is_member = safe_user in user_memberships
+    if is_member:
+        state = "paid"
+        valid_until = user_memberships[safe_user].get("expire_time")
+    elif safe_user == "anonymous" or safe_user.startswith("user_"):
+        state = "login_required"
+        valid_until = None
+    else:
+        state = "payment_required"
+        valid_until = None
+    return {
+        "report_id": report_id,
+        "unlock_state": state,
+        "valid_until": valid_until.strftime("%Y-%m-%d %H:%M:%S") if isinstance(valid_until, datetime) else valid_until,
+    }
+
+REPORT_EMPTY_TEXT = "暂无可整理的信息"
+REPORT_DISCLAIMER = "本报告仅基于公开信息整理，不构成投资建议。投资有风险，请独立判断。"
+
+def _report_value(value):
+    if value is None:
+        return REPORT_EMPTY_TEXT
+    text = str(value).strip()
+    if not text or text in {"-", "None", "null", "N/A"}:
+        return REPORT_EMPTY_TEXT
+    return text
+
+def _join_report_parts(parts):
+    cleaned = [_report_value(part) for part in parts if _report_value(part) != REPORT_EMPTY_TEXT]
+    return "；".join(cleaned) if cleaned else REPORT_EMPTY_TEXT
+
+def build_structured_report(stock_info, analysis, news, policy):
+    """返回固定 10 模块报告，前端按结构稳定渲染。"""
+    stock_info = stock_info or {}
+    news = news or []
+    name = _report_value(stock_info.get("name"))
+    code = _report_value(stock_info.get("code") or stock_info.get("symbol"))
+    price = _report_value(stock_info.get("price"))
+    change_pct = _report_value(stock_info.get("change_pct"))
+    amount = _report_value(stock_info.get("amount"))
+    pe = _report_value(stock_info.get("pe") or stock_info.get("pe_ratio"))
+    industry = _report_value(stock_info.get("industry"))
+    market = _report_value(stock_info.get("market"))
+    news_lines = []
+    for item in news[:5]:
+        title = _report_value(item.get("title") if isinstance(item, dict) else item)
+        if title != REPORT_EMPTY_TEXT:
+            news_lines.append(title)
+    news_text = "；".join(news_lines) if news_lines else REPORT_EMPTY_TEXT
+    policy_text = _report_value(policy.get("text") if isinstance(policy, dict) else None)
+    basis_text = _join_report_parts([
+        f"最新价 {price}" if price != REPORT_EMPTY_TEXT else "",
+        f"公开行情变动比例 {change_pct}%" if change_pct != REPORT_EMPTY_TEXT else "",
+        f"成交额 {amount}" if amount != REPORT_EMPTY_TEXT else "",
+        f"市盈率 {pe}" if pe != REPORT_EMPTY_TEXT else "",
+    ])
+    attention_text = _join_report_parts([
+        "近期公开信息主要围绕新闻动态、公司公告、公开市场数据变化展开",
+        f"所属市场：{market}" if market != REPORT_EMPTY_TEXT else "",
+        f"行业信息：{industry}" if industry != REPORT_EMPTY_TEXT else "",
+    ])
+    risk_text = "需关注公开数据延迟、公告更新、行业变化、公司经营信息变化等不确定因素。"
+    summary_text = _report_value(analysis)
+    return [
+        {"key": "basic_info", "title": "股票基础信息", "content": f"{name}（{code}）｜所属市场 {market}｜行业 {industry}"},
+        {"key": "recent_summary", "title": "近期重点摘要", "content": summary_text},
+        {"key": "news", "title": "新闻动态整理", "content": news_text},
+        {"key": "announcements", "title": "公司公告整理", "content": policy_text},
+        {"key": "capital_flow", "title": "资金动向整理", "content": amount if amount != REPORT_EMPTY_TEXT else REPORT_EMPTY_TEXT},
+        {"key": "price_overview", "title": "股价表现概览", "content": basis_text},
+        {"key": "market_attention", "title": "市场关注点", "content": attention_text},
+        {"key": "risk_notice", "title": "潜在风险提示", "content": risk_text},
+        {"key": "ai_summary", "title": "AI 总结：这只股票最近主要发生了什么", "content": summary_text},
+        {"key": "disclaimer", "title": "免责声明", "content": REPORT_DISCLAIMER},
+    ]
 
 # 内存存储订单（生产环境建议使用数据库）
 orders = {}
@@ -174,6 +294,11 @@ def index():
     track_visit()
     return render_template("index.html")
 
+@app.route("/report")
+def report():
+    track_visit()
+    return render_template("index.html")
+
 @app.route("/login")
 def login():
     return render_template("login.html")
@@ -217,8 +342,9 @@ def api_stocks():
     market = request.args.get("market", "a")
     sort_by = request.args.get("sort", "amount")
     page = int(request.args.get("page", 1))
+    size = int(request.args.get("size", 60))
     try:
-        stocks = get_stock_list(market=market, sort_by=sort_by, page=page, size=20)
+        stocks = get_stock_list(market=market, sort_by=sort_by, page=page, size=size)
         return jsonify({"stocks": stocks})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -226,13 +352,14 @@ def api_stocks():
 @app.route("/api/search")
 def api_search():
     keyword = request.args.get("q", "")
+    examples = ["600519", "贵州茅台", "NVDA", "英伟达", "NVIDIA"]
     if not keyword:
-        return jsonify({"error": "请提供搜索关键词"}), 400
+        return jsonify({"error": "请提供搜索关键词", "examples": examples}), 400
     try:
         results = search_stock(keyword)
-        return jsonify({"results": results})
+        return jsonify({"results": results, "examples": examples})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "examples": examples}), 500
 
 def _get_a_stock_news(code):
     """获取A股相关新闻"""
@@ -344,16 +471,34 @@ def _get_policy_info(code, stock_info):
 def api_analyze():
     code = request.args.get("code", "")
     user_id = request.args.get("user_id", None)
+    force_refresh = request.args.get("refresh", "false").lower() == "true"
+    
     if not code:
         return jsonify({"error": "请提供股票代码"}), 400
     
-    # ====== 次数限制检查 ======
     user_id = user_id or 'anonymous'
+    
+    # ====== 缓存检查（30分钟内免费复看） ======
+    if not force_refresh:
+        cached_data, elapsed_minutes = get_cached_analysis(user_id, code)
+        if cached_data:
+            remaining_minutes = int(CACHE_DURATION_MINUTES - elapsed_minutes)
+            return jsonify({
+                **cached_data,
+                **build_report_meta(user_id, code),
+                "cached": True,
+                "cached_time": f"{int(elapsed_minutes)}分钟前",
+                "cache_expires_in": remaining_minutes,
+                "message": f"📋 这是您{int(elapsed_minutes)}分钟前的分析结果（{remaining_minutes}分钟内免费复看）",
+                "limit_info": get_user_limit_info(user_id)
+            })
+    
+    # ====== 次数限制检查 ======
     limit_info = get_user_limit_info(user_id)
     
     if limit_info['remaining'] <= 0:
         return jsonify({
-            "error": "今日AI分析次数已用完",
+            "error": "今日信息摘要次数已用完",
             "limit_info": limit_info,
             "upgrade_url": "/subscribe",
             "message": f"免费用户每日{limit_info['limit']}次，开通会员享更多次数"
@@ -393,14 +538,23 @@ def api_analyze():
 
         # 获取政策关联信息
         policy = _get_policy_info(code, stock_info)
+        report_modules = build_structured_report(stock_info, result["analysis"], news, policy)
 
-        return jsonify({
+        response_data = {
             "stock": result["stock"],
             "analysis": result["analysis"],
             "verdict": result.get("verdict", ""),
             "news": news,
             "policy": policy,
-        })
+            "report_modules": report_modules,
+            "limit_info": get_user_limit_info(user_id),
+            **build_report_meta(user_id, code),
+        }
+        
+        # 缓存分析结果（30分钟内免费复看）
+        cache_analysis(user_id, code, response_data)
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -528,9 +682,21 @@ def api_sector_stocks():
         elif sort_by == "volume":
             all_stocks.sort(key=lambda s: float(s.get("volume") or 0), reverse=True)
         
+        if not all_stocks:
+            fallback = []
+            for c in codes[:20]:
+                detail = get_stock_detail(c)
+                if detail:
+                    fallback.append(detail)
+            return jsonify({"stocks": fallback})
         return jsonify({"stocks": all_stocks})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        fallback = []
+        for c in codes[:20]:
+            detail = get_stock_detail(c)
+            if detail:
+                fallback.append(detail)
+        return jsonify({"stocks": fallback, "message": "实时赛道数据暂不可用，已展示示例公开信息"})
 
 
 @app.route("/api/sector-heat")
@@ -627,13 +793,31 @@ def api_stock_detail(code):
 
 @app.route("/api/user/limit")
 def api_user_limit():
-    """获取用户AI分析次数限制信息"""
+    """获取用户信息摘要次数限制信息"""
     user_id = request.args.get("user_id", "anonymous")
     limit_info = get_user_limit_info(user_id)
     return jsonify({
         "success": True,
         "limit_info": limit_info
     })
+
+
+# ==================== 法律合规页面 ====================
+
+@app.route('/terms')
+def terms_page():
+    """用户协议页面"""
+    return render_template('terms.html')
+
+@app.route('/refund')
+def refund_page():
+    """退费规则页面"""
+    return render_template('refund.html')
+
+@app.route('/disclaimer')
+def disclaimer_page():
+    """免责声明页面"""
+    return render_template('disclaimer.html')
 
 
 # ==================== 支付系统路由开始 ====================
@@ -646,27 +830,23 @@ def subscribe_page():
 
 @app.route('/api/create_order', methods=['POST'])
 def create_order():
-    """创建支付订单"""
+    """创建支付订单 - 支付宝官方接入"""
     data = request.get_json()
-    
+
     plan_id = data.get('plan_id')
-    pay_type = data.get('pay_type', 'wxpay')
     user_id = data.get('user_id', 'anonymous')
-    
+
     if plan_id not in MEMBER_PLANS:
         return jsonify({'success': False, 'error': '无效的套餐'}), 400
-    
-    if pay_type not in ['wxpay', 'alipay']:
-        return jsonify({'success': False, 'error': '无效的支付方式'}), 400
-    
+
     plan = MEMBER_PLANS[plan_id]
-    
+
     # 生成唯一订单号
-    order_no = f"ORDER{datetime.now().strftime('%Y%m%d%H%M%S')}{uuid.uuid4().hex[:6]}"
-    
+    order_no = generate_order_no()
+
     # 设置过期时间
     expire_time = datetime.now() + timedelta(seconds=PAYMENT_CONFIG['order_timeout'])
-    
+
     # 创建订单
     orders[order_no] = {
         'order_no': order_no,
@@ -674,35 +854,54 @@ def create_order():
         'plan_id': plan_id,
         'plan_name': plan['name'],
         'amount': plan['amount'],
-        'pay_type': pay_type,
+        'pay_type': 'alipay',
         'status': 'PENDING',
         'create_time': datetime.now(),
         'expire_time': expire_time
     }
-    
-    # 生成收款二维码
-    qr_data = f"{PAYMENT_CONFIG['wx_pay_url']}?amount={plan['amount']}&remark={order_no}"
-    
-    # 生成二维码图片
-    if qrcode:
-        qr = qrcode.QRCode(version=1, box_size=10, border=2)
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        img_str = base64.b64encode(buffer.getvalue()).decode()
-    else:
-        img_str = ""
-    
-    return jsonify({
-        'success': True,
-        'order_no': order_no,
-        'amount': plan['amount'],
-        'qr_code': f'data:image/png;base64,{img_str}',
-        'expire_time': expire_time.strftime('%Y-%m-%d %H:%M:%S'),
-        'pay_type': pay_type,
-    })
+
+    # 构建回调URL
+    site_url = PAYMENT_CONFIG['site_url']
+    return_url = f"{site_url}/api/alipay/return"
+    notify_url = f"{site_url}/api/alipay/notify"
+
+    # 判断设备类型，选择电脑网站支付或手机网站支付
+    subject = f"股小智AI - {plan['name']}"
+    body = f"{plan['name']}会员服务，有效期{plan['duration_days']}天"
+
+    try:
+        if is_mobile_request():
+            # 手机端使用H5支付
+            pay_url = create_alipay_wap_order(
+                order_no=order_no,
+                amount=plan['amount'],
+                subject=subject,
+                body=body,
+                return_url=return_url,
+                notify_url=notify_url
+            )
+        else:
+            # 电脑端使用网页支付
+            pay_url = create_alipay_page_order(
+                order_no=order_no,
+                amount=plan['amount'],
+                subject=subject,
+                body=body,
+                return_url=return_url,
+                notify_url=notify_url
+            )
+
+        return jsonify({
+            'success': True,
+            'order_no': order_no,
+            'amount': plan['amount'],
+            'pay_url': pay_url,
+            'expire_time': expire_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'pay_type': 'alipay',
+        })
+    except Exception as e:
+        print(f"[创建订单失败] {e}")
+        return jsonify({'success': False, 'error': '支付系统暂时不可用，请稍后重试'}), 500
 
 
 @app.route('/api/check_order/<order_no>')
@@ -732,45 +931,82 @@ def check_order(order_no):
     })
 
 
-@app.route('/api/notify', methods=['POST'])
-def payment_notify():
-    """监控端回调接口"""
-    data = request.get_json()
-    
-    # 验证签名
-    sign = data.pop('sign', None)
-    timestamp = data.get('timestamp', '')
-    
-    expected_sign = hashlib.md5(
-        f"{data['order_no']}{data['amount']}{timestamp}{PAYMENT_CONFIG['callback_key']}".encode()
-    ).hexdigest()
-    
-    if sign != expected_sign:
-        return jsonify({'success': False, 'error': '签名验证失败'}), 403
-    
-    order_no = data.get('order_no')
-    amount = data.get('amount')
-    pay_type = data.get('pay_type')
-    
+@app.route('/api/alipay/return')
+def alipay_return():
+    """支付宝同步回调 - 支付成功后跳转回来"""
+    data = request.args.to_dict()
+    order_no = data.get('out_trade_no')
+
     order = orders.get(order_no)
-    
     if not order:
-        return jsonify({'success': False, 'error': '订单不存在'}), 404
-    
-    if order['status'] != 'PENDING':
-        return jsonify({'success': False, 'error': '订单状态异常'}), 400
-    
+        return render_template('pay_result.html', success=False, message='订单不存在')
+
+    # 查询订单真实状态
+    try:
+        result = query_order(order_no)
+        if result.get('trade_status') in ['TRADE_SUCCESS', 'TRADE_FINISHED']:
+            if order['status'] == 'PENDING':
+                order['status'] = 'PAID'
+                order['pay_time'] = datetime.now()
+                plan = MEMBER_PLANS.get(order['plan_id'], {})
+                user_memberships[order['user_id']] = {
+                    'plan_id': order['plan_id'],
+                    'order_no': order_no,
+                    'start_time': order['pay_time'],
+                    'expire_time': order['pay_time'] + timedelta(days=plan.get('duration_days', 30)),
+                }
+            return render_template('pay_result.html', success=True,
+                                   plan_name=order['plan_name'],
+                                   amount=order['amount'])
+    except Exception as e:
+        print(f"[同步回调查询失败] {e}")
+
+    # 如果查询失败，但用户已经支付，显示处理中
+    return render_template('pay_result.html', success=True,
+                           plan_name=order['plan_name'],
+                           amount=order['amount'],
+                           message='支付处理中，请稍后刷新页面查看')
+
+
+@app.route('/api/alipay/notify', methods=['POST'])
+def alipay_notify():
+    """支付宝异步通知 - 支付结果后台通知"""
+    data = request.form.to_dict()
+
+    # 验证签名
+    if not verify_alipay_notify(data.copy()):
+        print("[支付宝通知] 签名验证失败")
+        return 'fail'
+
+    order_no = data.get('out_trade_no')
+    trade_status = data.get('trade_status')
+    total_amount = data.get('total_amount')
+
+    order = orders.get(order_no)
+    if not order:
+        return 'success'  # 订单不存在也返回success，避免支付宝重复通知
+
     # 校验金额
-    if amount != order['amount']:
-        return jsonify({'success': False, 'error': '金额不匹配'}), 400
-    
-    # 更新订单状态
-    order['status'] = 'PAID'
-    order['pay_time'] = datetime.now()
-    
-    print(f"[支付成功] 订单: {order_no}, 金额: {amount}, 用户: {order['user_id']}")
-    
-    return jsonify({'success': True, 'message': '支付成功'})
+    if float(total_amount) != float(order['amount']):
+        print(f"[支付宝通知] 金额不匹配: 通知{total_amount} vs 订单{order['amount']}")
+        return 'fail'
+
+    # 处理支付成功
+    if trade_status in ['TRADE_SUCCESS', 'TRADE_FINISHED']:
+        if order['status'] == 'PENDING':
+            order['status'] = 'PAID'
+            order['pay_time'] = datetime.now()
+            order['trade_no'] = data.get('trade_no')  # 支付宝交易号
+            plan = MEMBER_PLANS.get(order['plan_id'], {})
+            user_memberships[order['user_id']] = {
+                'plan_id': order['plan_id'],
+                'order_no': order_no,
+                'start_time': order['pay_time'],
+                'expire_time': order['pay_time'] + timedelta(days=plan.get('duration_days', 30)),
+            }
+            print(f"[支付成功] 订单: {order_no}, 金额: {total_amount}, 用户: {order['user_id']}, 支付宝交易号: {data.get('trade_no')}")
+
+    return 'success'
 
 
 @app.route('/admin/payments')

@@ -1,0 +1,20 @@
+{
+  "user_id": "prd_nio",
+  "created": "2026-06-11",
+  "queries": [
+    {
+      "date": "2026-06-11 02:19",
+      "symbol": "NIO",
+      "name": "NIO",
+      "verdict": "信息关注",
+      "summary": "NIO（NIO）属于美股公开行情整理：最新价100.0，当前涨跌幅为+1.01%，价格表现偏强，但仍需结合成交量和公司公告一起看。\n基础指标方面，PE为20.0"
+    }
+  ],
+  "watchlist": [
+    {
+      "symbol": "NIO",
+      "name": "NIO",
+      "last_checked": "2026-06-11 02:19"
+    }
+  ]
+}

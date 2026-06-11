@@ -4,3 +4,6 @@ data/
 .env
 .venv/
 *.codex*
+alipay_private_key.pem
+alipay_app_public_key.txt
+alipay_public_key.pem
